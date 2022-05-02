@@ -1,0 +1,37 @@
+[package]
+name = "aedron_patchouli-server"
+version = "0.1.0"
+description = "Friendly media server --- Server binary"
+authors = ["Dragonink (https://github.com/Dragonink)"]
+edition = "2021"
+publish = false
+
+[dependencies]
+aedron_patchouli-server-proc = { path = "proc" }
+either = "1"
+futures = "0"
+once_cell = "1"
+yansi = "0"
+[dependencies.aedron_patchouli-common]
+path = "../common"
+features = ["server_impls"]
+[dependencies.figment]
+version = "0"
+features = ["toml"]
+[dependencies.rocket]
+git = "https://github.com/SergioBenitez/Rocket"
+features = ["msgpack"]
+[dependencies.rocket_db_pools]
+git = "https://github.com/SergioBenitez/Rocket"
+features = ["sqlx_sqlite"]
+[dependencies.serde]
+version = "1"
+features = ["derive"]
+[dependencies.sqlx]
+version = "0"
+default-features = false
+features = ["macros", "offline"]
+[dependencies.tokio]
+version = "1"
+default-features = false
+features = ["sync", "fs"]

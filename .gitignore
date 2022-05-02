@@ -1,0 +1,9 @@
+/db.sqlite*
+*.env
+out/
+
+# Rust
+/target/
+
+# Visual Studio Code
+.vscode/

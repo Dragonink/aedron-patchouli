@@ -1,0 +1,397 @@
+{
+  "db": "SQLite",
+  "0962e86c0b4d7cc24573b2282e79b8a254b7a3c641fe3012550d0f226dafa366": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int64"
+        },
+        {
+          "name": "title",
+          "ordinal": 1,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        false
+      ],
+      "parameters": {
+        "Right": 1
+      }
+    },
+    "query": "SELECT id, title FROM media_image WHERE library = ?"
+  },
+  "1554e979625cdf12470507f94a515741005ad0222c288fea49c7411c19e42ee1": {
+    "describe": {
+      "columns": [
+        {
+          "name": "count(*)",
+          "ordinal": 0,
+          "type_info": "Int"
+        }
+      ],
+      "nullable": [
+        false
+      ],
+      "parameters": {
+        "Right": 0
+      }
+    },
+    "query": "SELECT count(*) FROM sqlite_master"
+  },
+  "18a1d088c2eeb28cb93d817769ad2ba3daae3da7702ab8fc53ce05800ab161d6": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int64"
+        },
+        {
+          "name": "name",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "kind",
+          "ordinal": 2,
+          "type_info": "Int64"
+        },
+        {
+          "name": "paths",
+          "ordinal": 3,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "parameters": {
+        "Right": 0
+      }
+    },
+    "query": "SELECT * FROM libraries"
+  },
+  "1b167ea36b28b79e5618b61a2d6c519347d9a934faab637b9005eec1fc18d9eb": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int64"
+        },
+        {
+          "name": "name",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "kind",
+          "ordinal": 2,
+          "type_info": "Int64"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false
+      ],
+      "parameters": {
+        "Right": 0
+      }
+    },
+    "query": "SELECT id, name, kind FROM libraries"
+  },
+  "2050aa19fc99bfad01a0f6e651e38338bb3fe7011a3f888bd4cc2c721e2a2c0f": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 3
+      }
+    },
+    "query": "INSERT OR IGNORE INTO media_image (library, path, title) VALUES (?, ?, ?)"
+  },
+  "233baeffb0613508fd46089053ff49a31160c98433c6573a0fcfcbf601794908": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int64"
+        },
+        {
+          "name": "name",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "kind",
+          "ordinal": 2,
+          "type_info": "Int64"
+        },
+        {
+          "name": "paths",
+          "ordinal": 3,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "parameters": {
+        "Right": 1
+      }
+    },
+    "query": "SELECT * FROM libraries WHERE id = ?"
+  },
+  "24c331fd944928830769436f2250bc89084cdcbae96af1cadc6d3af76e67f2a5": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 1
+      }
+    },
+    "query": "DELETE FROM libraries WHERE id = ?"
+  },
+  "37221bf1f711f3c22fc2812e2e137c8859a2328f3eb9146ed994c14c42dfe8c0": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int64"
+        },
+        {
+          "name": "title",
+          "ordinal": 1,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        false
+      ],
+      "parameters": {
+        "Right": 2
+      }
+    },
+    "query": "SELECT id, title FROM media_image WHERE library = ? AND id = ?"
+  },
+  "37b15111883b399348e0d1b273d7c8d873ef10e3390e13d9127226266a4dc694": {
+    "describe": {
+      "columns": [
+        {
+          "name": "kind",
+          "ordinal": 0,
+          "type_info": "Int64"
+        }
+      ],
+      "nullable": [
+        false
+      ],
+      "parameters": {
+        "Right": 1
+      }
+    },
+    "query": "SELECT kind FROM libraries WHERE id = ?"
+  },
+  "47dcf9bed7eb3b0b4e7f6d05a539c722389277775633c11f4cbf1553e3b20fc1": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int64"
+        },
+        {
+          "name": "title",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "artist",
+          "ordinal": 2,
+          "type_info": "Text"
+        },
+        {
+          "name": "album",
+          "ordinal": 3,
+          "type_info": "Text"
+        },
+        {
+          "name": "track",
+          "ordinal": 4,
+          "type_info": "Int64"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        true,
+        true,
+        true
+      ],
+      "parameters": {
+        "Right": 1
+      }
+    },
+    "query": "SELECT id, title, artist, album, track FROM media_music WHERE library = ?"
+  },
+  "4ef9827939ca23ef69437ced1036ec754bc98abcf0d2c3fdfa84c4450d93c4b3": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int64"
+        },
+        {
+          "name": "name",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "kind",
+          "ordinal": 2,
+          "type_info": "Int64"
+        },
+        {
+          "name": "paths",
+          "ordinal": 3,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "parameters": {
+        "Right": 3
+      }
+    },
+    "query": "INSERT INTO libraries (name, kind, paths) VALUES (?, ?, ?) RETURNING *"
+  },
+  "5eb3dd981f2e103cfcbe0e3a361540a45a4feb979df418aff1421abd7e14cbd0": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 3
+      }
+    },
+    "query": "INSERT OR IGNORE INTO media_music (library, path, title) VALUES (?, ?, ?)"
+  },
+  "6f11c188b18cee5439bc3fc2b6be59c57e684a57803a4916bd78f3eba627fdb9": {
+    "describe": {
+      "columns": [
+        {
+          "name": "paths",
+          "ordinal": 0,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false
+      ],
+      "parameters": {
+        "Right": 1
+      }
+    },
+    "query": "SELECT paths FROM libraries WHERE id = ?"
+  },
+  "a02cc183097f266ec6ea05dbb6babb0ef3f18c97cf84f3c737c04220b048c5b9": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 4
+      }
+    },
+    "query": "UPDATE libraries SET name = ?, kind = ?, paths = ? WHERE id = ?"
+  },
+  "cccd8ea7442eb255979086c76c15ef018e21833aa151007cf132179fd8bb45b6": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int64"
+        },
+        {
+          "name": "name",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "kind",
+          "ordinal": 2,
+          "type_info": "Int64"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false
+      ],
+      "parameters": {
+        "Right": 1
+      }
+    },
+    "query": "SELECT id, name, kind FROM libraries WHERE id = ?"
+  },
+  "d2c973760be9c7175bfea1261b2206fb0eac779a5d7cce11c89024e6bfc1e736": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int64"
+        },
+        {
+          "name": "title",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "artist",
+          "ordinal": 2,
+          "type_info": "Text"
+        },
+        {
+          "name": "album",
+          "ordinal": 3,
+          "type_info": "Text"
+        },
+        {
+          "name": "track",
+          "ordinal": 4,
+          "type_info": "Int64"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        true,
+        true,
+        true
+      ],
+      "parameters": {
+        "Right": 2
+      }
+    },
+    "query": "SELECT id, title, artist, album, track FROM media_music WHERE library = ? AND id = ?"
+  }
+}

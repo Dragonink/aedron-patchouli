@@ -1,0 +1,17 @@
+[workspace]
+members = [
+	"common",
+	"client",
+	"server"
+]
+
+[profile.release-wasm]
+inherits = "release"
+opt-level = "s"
+lto = true
+strip = true
+panic = "abort"
+codegen-units = 1
+
+[profile.dev.package.sqlx-macros]
+opt-level = 3

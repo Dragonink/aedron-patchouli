@@ -1,0 +1,6 @@
+[global]
+ident = "AedronPatchouli/{version}"
+
+[global.databases.db]
+url = "db.sqlite"
+synchronous = "normal"

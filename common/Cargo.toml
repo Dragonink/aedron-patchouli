@@ -1,0 +1,22 @@
+[package]
+name = "aedron_patchouli-common"
+version = "0.1.0"
+description = "Friendly media server --- Client-Server interoperability & utils"
+authors = ["Dragonink (https://github.com/Dragonink)"]
+edition = "2021"
+publish = false
+
+[features]
+server_impls = ["dep:rocket"]
+
+[dependencies]
+constcat = "0"
+derive-try-from-primitive = "1"
+enum-iterator = "1"
+[dependencies.rocket]
+optional = true
+git = "https://github.com/SergioBenitez/Rocket"
+default-features = false
+[dependencies.serde]
+version = "1"
+features = ["derive"]
