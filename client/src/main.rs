@@ -18,7 +18,7 @@ pub fn start() {
 
 	std::panic::set_hook(Box::new(console_error_panic_hook::hook));
 
-	sycamore::render(|cx| App(cx, ())); //FIXME component 2nd arg
+	sycamore::render(|cx| App(cx));
 }
 
 async fn send_api(req: &Request) -> Result<u16, JsValue> {

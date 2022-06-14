@@ -21,7 +21,7 @@ pub(crate) fn App<G: Html>(cx: Scope) -> View<G> {
 					.dyn_c(move || {
 						let route = route.get();
 						match route.as_ref() {
-							Route::Home => super::Libraries(cx, ()), //FIXME
+							Route::Home => super::Libraries(cx),
 							&Route::Library(id) => super::Library(cx, id),
 							&Route::Media { library, media } => {
 								super::Media(cx, super::MediaProps { library, media })
