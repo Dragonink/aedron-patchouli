@@ -4,13 +4,17 @@
 #[macro_use]
 extern crate rocket;
 use aedron_patchouli_server_proc::*;
+use figment::{
+	value::{Dict, Map},
+	Metadata, Profile, Provider, Source,
+};
 use futures::stream::StreamExt;
 use rocket::{
 	fairing::{self, Fairing, Info},
 	Build, Orbit, Rocket,
 };
 use rocket_db_pools::{sqlx::SqlitePool, Database as IDatabase, Pool};
-use serde::{Deserialize, Serialize};
+use serde::{de::IntoDeserializer, Deserialize, Serialize};
 use std::net::IpAddr;
 
 #[macro_use]
@@ -18,13 +22,21 @@ mod log;
 mod routes;
 mod tasks;
 
-#[derive(Debug, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
+#[non_exhaustive]
 struct Config {
 	#[serde(default = "Config::default_address")]
 	address: IpAddr,
 	#[serde(default = "Config::default_port")]
 	port: u16,
+	#[serde(default = "Config::default_secret_key", skip_serializing)]
+	secret_key: String,
+
+	#[serde(skip)]
+	profile: Profile,
+	#[serde(skip)]
+	source: Option<Source>,
 }
 impl Config {
 	#[inline(always)]
@@ -36,16 +48,62 @@ impl Config {
 
 	#[inline(always)]
 	pub const fn default_port() -> u16 {
-		2372 //NOTE: "AEPA" on a phone keyboard
+		2372 // "AEPA" on a phone keyboard
+	}
+
+	#[inline]
+	pub fn default_secret_key() -> String {
+		use rocket::config::SecretKey;
+
+		let s = String::from_utf8_lossy(&[b'0'; 64]);
+		#[cfg(debug_assertions)]
+		{
+			let res: Result<SecretKey, serde::de::value::Error> =
+				Deserialize::deserialize(s.as_ref().into_deserializer());
+			assert!(res.unwrap().is_zero());
+		}
+		s.to_string()
 	}
 }
 impl Default for Config {
-	#[inline(always)]
+	#[inline]
 	fn default() -> Self {
 		Self {
 			address: Self::default_address(),
 			port: Self::default_port(),
+			secret_key: Self::default_secret_key(),
+
+			profile: Default::default(),
+			source: Default::default(),
 		}
+	}
+}
+impl Provider for Config {
+	#[inline]
+	fn metadata(&self) -> Metadata {
+		let mut meta = Metadata::named("Aedron Patchouli Config");
+		meta.source = self.source.clone();
+		meta
+	}
+
+	fn data(&self) -> figment::error::Result<Map<Profile, Dict>> {
+		use figment::providers::Serialized;
+
+		let mut map = Serialized::from(self, self.profile.clone()).data()?;
+		if self.profile != Profile::Default && self.profile != "debug" {
+			if let Some(map) = map.get_mut(&self.profile) {
+				map.insert(
+					rocket::Config::SECRET_KEY.to_string(),
+					self.secret_key.as_str().into(),
+				);
+			}
+		}
+		Ok(map)
+	}
+
+	#[inline]
+	fn profile(&self) -> Option<Profile> {
+		Some(self.profile.clone())
 	}
 }
 
@@ -63,7 +121,7 @@ impl Database {
 }
 
 struct DatabaseManager;
-#[rocket::async_trait]
+#[async_trait]
 impl Fairing for DatabaseManager {
 	#[inline(always)]
 	fn info(&self) -> Info {
@@ -201,7 +259,7 @@ impl Fairing for DatabaseManager {
 #[launch]
 async fn rocket() -> _ {
 	use figment::{
-		providers::{Format, Serialized, Toml},
+		providers::{Format, Toml},
 		Figment,
 	};
 	use std::{path::Path, process};
@@ -209,15 +267,22 @@ async fn rocket() -> _ {
 	yansi::Paint::enable_windows_ascii();
 
 	const STATIC_CONFIG: &str = include_static_config!("src/Rocket.toml");
-	let mut figment = Figment::from(rocket::Config::default())
-		.merge(Serialized::defaults(Config::default()))
+	let rocket_config = rocket::Config::default();
+	let aepa_config = Config {
+		profile: rocket_config.profile.clone(),
+		..Config::default()
+	};
+	let mut figment = Figment::from(rocket_config)
+		.merge(aepa_config)
 		.merge(Toml::string(STATIC_CONFIG).nested());
 	const USER_CONFIG_PATH: &str = "config.toml";
 	if let Ok(md) = tokio::fs::metadata(USER_CONFIG_PATH).await {
 		if md.is_file() {
 			match Toml::from_path::<Config>(Path::new(USER_CONFIG_PATH)) {
-				Ok(user_config) => {
-					figment = figment.merge(Serialized::defaults(user_config));
+				Ok(mut user_config) => {
+					user_config.profile = Profile::Global;
+					user_config.source = Some(Source::File(USER_CONFIG_PATH.into()));
+					figment = figment.merge(user_config);
 				}
 				Err(err) => {
 					console_error!(&format!("Could not read `{USER_CONFIG_PATH}`"), "{err}");
