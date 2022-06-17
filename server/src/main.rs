@@ -134,7 +134,7 @@ impl Fairing for DatabaseManager {
 	}
 
 	async fn on_ignite(&self, rocket: Rocket<Build>) -> fairing::Result {
-		use aedron_patchouli_common::library::DbLibraryConfig;
+		use aedron_patchouli_common::libraries::DbLibraryConfig;
 		use futures::stream::FuturesUnordered;
 
 		macro_rules! try_result {

@@ -1,5 +1,5 @@
 use crate::Database;
-use aedron_patchouli_common::library::LibraryKind;
+use aedron_patchouli_common::libraries::LibraryKind;
 use either::Either;
 use rocket::{Build, Rocket};
 use rocket_db_pools::Connection;

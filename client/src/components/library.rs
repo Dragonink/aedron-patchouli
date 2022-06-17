@@ -1,4 +1,4 @@
-use aedron_patchouli_common::library::Library;
+use aedron_patchouli_common::libraries::Library;
 use sycamore::{component::Prop, prelude::*};
 use wasm_bindgen::UnwrapThrowExt;
 
@@ -20,7 +20,7 @@ pub(super) fn Library<G: Html>(cx: Scope, id: u64) -> View<G> {
 #[component]
 async fn FetchedLibrary<G: Html>(cx: Scope<'_>, id: u64) -> View<G> {
 	use aedron_patchouli_common::{
-		library::{LibraryKind, PartialLibrary, API_ENDPOINT},
+		libraries::{LibraryKind, PartialLibrary, API_ENDPOINT},
 		media::{MediaImage, MediaMusic},
 	};
 	use sycamore::builder::prelude::*;

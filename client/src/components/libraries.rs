@@ -1,4 +1,4 @@
-use aedron_patchouli_common::library::{LibraryConfig, PartialLibrary};
+use aedron_patchouli_common::libraries::{LibraryConfig, PartialLibrary};
 use std::{convert::Infallible, ops::Deref, str::FromStr};
 use sycamore::{component::Prop, prelude::*};
 use wasm_bindgen::{JsCast, UnwrapThrowExt};
@@ -48,7 +48,7 @@ async fn FetchedLibraries<'a, G: Html>(
 	cx: Scope<'a>,
 	props: FetchedLibrariesProps<'a, G>,
 ) -> View<G> {
-	use aedron_patchouli_common::library::API_ENDPOINT;
+	use aedron_patchouli_common::libraries::API_ENDPOINT;
 	use sycamore::builder::prelude::*;
 	use web_sys::{HtmlDialogElement, Request};
 
@@ -92,7 +92,7 @@ async fn FetchedLibraries<'a, G: Html>(
 
 #[component]
 fn LibraryFormFields<G: Html>(cx: Scope, library: Option<LibraryConfig>) -> View<G> {
-	use aedron_patchouli_common::library::LibraryKind;
+	use aedron_patchouli_common::libraries::LibraryKind;
 	use sycamore::builder::prelude::*;
 	use web_sys::{Event, HtmlInputElement};
 
@@ -195,7 +195,7 @@ fn CreateLibrary<'a, G: Html>(
 	cx: Scope<'a>,
 	libraries: &'a Signal<Vec<PartialLibrary>>,
 ) -> View<G> {
-	use aedron_patchouli_common::library::{LibraryConfig, API_ENDPOINT};
+	use aedron_patchouli_common::libraries::{LibraryConfig, API_ENDPOINT};
 	use sycamore::builder::prelude::*;
 	use web_sys::{Event, FormData, HtmlFormElement, Request, RequestInit};
 
@@ -240,7 +240,7 @@ struct ManageLibraryProps<'a, G: Html> {
 }
 #[component]
 fn ManageLibrary<'a, G: Html>(cx: Scope<'a>, props: ManageLibraryProps<'a, G>) -> View<G> {
-	use aedron_patchouli_common::library::API_ENDPOINT;
+	use aedron_patchouli_common::libraries::API_ENDPOINT;
 	use sycamore::builder::prelude::*;
 	use web_sys::{
 		Event, FormData, Headers, HtmlButtonElement, HtmlDialogElement, HtmlFormElement, Request,

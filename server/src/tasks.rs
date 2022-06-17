@@ -1,5 +1,5 @@
 use crate::Database;
-use aedron_patchouli_common::library::{LibraryConfig, LibraryKind};
+use aedron_patchouli_common::libraries::{LibraryConfig, LibraryKind};
 use futures::{Stream, StreamExt};
 use std::{
 	collections::{HashSet, VecDeque},

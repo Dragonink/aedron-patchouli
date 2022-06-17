@@ -65,9 +65,8 @@ endif
 #!SECTION
 
 #SECTION HTML
-OUT_HTML := out/$(OUTPUT_PREFIX).html
-$(OUT_HTML) : assets/$(OUTPUT_PREFIX).html | out
-	$(info $<)
+OUT_HTML := $(patsubst assets/%,out/%,$(wildcard assets/*.html))
+$(OUT_HTML) : out/% : assets/% | out
 ifdef RELEASE
 	rm -f "$@"
 	sed \

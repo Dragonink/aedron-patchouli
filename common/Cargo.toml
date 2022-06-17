@@ -1,6 +1,6 @@
 [package]
 name = "aedron_patchouli-common"
-version = "0.1.0"
+version = "0.2.0"
 description = "Friendly media server --- Client-Server interoperability & utils"
 authors = ["Dragonink (https://github.com/Dragonink)"]
 edition = "2021"

@@ -23,7 +23,7 @@ pub(super) fn Media<G: Html>(cx: Scope, media_props: MediaProps) -> View<G> {
 
 #[component]
 async fn MediaSwitch<G: Html>(cx: Scope<'_>, props: MediaProps) -> View<G> {
-	use aedron_patchouli_common::library::{LibraryKind, PartialLibrary, API_ENDPOINT};
+	use aedron_patchouli_common::libraries::{LibraryKind, PartialLibrary, API_ENDPOINT};
 	use web_sys::Request;
 
 	let req = Request::new_with_str(&format!("{API_ENDPOINT}/{}", props.library)).unwrap_throw();

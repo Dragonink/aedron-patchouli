@@ -9,5 +9,5 @@ extern crate constcat;
 /// Base endpoint for API requests
 pub const API_BASE: &str = "/api";
 
-pub mod library;
+pub mod libraries;
 pub mod media;
