@@ -1,7 +1,7 @@
 use super::{sqlx_response_err, SqlxResponseResult};
-use crate::Database;
+use crate::{guards::User, Database};
 use either::Either;
-use rocket::fs::NamedFile;
+use rocket::{fs::NamedFile, response::Redirect};
 #[cfg(not(debug_assertions))]
 use rocket::{
 	http::ContentType,
@@ -16,16 +16,30 @@ use rocket_db_pools::Connection;
 use std::io;
 
 #[inline]
+fn redirect_to_login_page() -> Redirect {
+	Redirect::to(uri!(login_page))
+}
+
+#[inline]
 fn accept_html(accept: &Accept) -> bool {
 	use rocket::http::MediaType;
 
 	accept.media_types().any(|mt| MediaType::HTML.eq(mt))
 }
 
-#[cfg(debug_assertions)]
 #[get("/<_..>", rank = 69)]
 #[inline]
-async fn html(accept: &Accept) -> Either<io::Result<NamedFile>, Status> {
+pub(super) fn index() -> Redirect {
+	redirect_to_login_page()
+}
+
+#[cfg(debug_assertions)]
+#[get("/<_..>", rank = 42)]
+#[inline]
+pub(super) async fn index_page(
+	accept: &Accept,
+	_user: &User,
+) -> Either<io::Result<NamedFile>, Status> {
 	if accept_html(accept) {
 		Either::Left(NamedFile::open("client/out/index.html").await)
 	} else {
@@ -33,10 +47,38 @@ async fn html(accept: &Accept) -> Either<io::Result<NamedFile>, Status> {
 	}
 }
 #[cfg(not(debug_assertions))]
-#[get("/<_..>", rank = 69)]
+#[get("/<_..>", rank = 42)]
 #[inline]
-fn html(accept: &Accept) -> Either<RawHtml<&'static str>, Status> {
+pub(super) fn index_page(accept: &Accept, _user: &User) -> Either<RawHtml<&'static str>, Status> {
 	const CONTENT: &str = include_str!("../../../client/out/index.html");
+
+	if accept_html(accept) {
+		Either::Left(RawHtml(CONTENT))
+	} else {
+		Either::Right(Status::NotFound)
+	}
+}
+
+#[get("/login")]
+#[inline]
+pub(super) fn login(_user: &User) -> Redirect {
+	Redirect::to(uri!(index_page("/")))
+}
+
+#[cfg(debug_assertions)]
+#[get("/login", rank = 2)]
+pub(super) async fn login_page(accept: &Accept) -> Either<io::Result<NamedFile>, Status> {
+	if accept_html(accept) {
+		Either::Left(NamedFile::open("client/out/login.html").await)
+	} else {
+		Either::Right(Status::NotFound)
+	}
+}
+#[cfg(not(debug_assertions))]
+#[get("/login", rank = 2)]
+#[inline]
+pub(super) fn login_page(accept: &Accept) -> Either<RawHtml<&'static str>, Status> {
+	const CONTENT: &str = include_str!("../../../client/out/login.html");
 
 	if accept_html(accept) {
 		Either::Left(RawHtml(CONTENT))
@@ -75,9 +117,16 @@ const fn wasm() -> (ContentType, &'static [u8]) {
 	(ContentType::WASM, CONTENT)
 }
 
+#[get("/media", rank = 2)]
+#[inline]
+fn media() -> Redirect {
+	redirect_to_login_page()
+}
+
 #[get("/media?<library>&<file>")]
-async fn media(
+async fn media_resource(
 	mut db: Connection<Database>,
+	_user: &User,
 	library: u64,
 	file: u64,
 ) -> SqlxResponseResult<NamedFile> {
@@ -100,5 +149,14 @@ async fn media(
 
 #[inline]
 pub(crate) fn routes() -> Vec<Route> {
-	routes![html, js, wasm, media]
+	routes![
+		index,
+		index_page,
+		login,
+		login_page,
+		js,
+		wasm,
+		media,
+		media_resource
+	]
 }

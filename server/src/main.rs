@@ -19,6 +19,7 @@ use std::net::IpAddr;
 
 #[macro_use]
 mod log;
+mod guards;
 mod routes;
 mod tasks;
 
@@ -135,6 +136,7 @@ impl Fairing for DatabaseManager {
 
 	async fn on_ignite(&self, rocket: Rocket<Build>) -> fairing::Result {
 		use aedron_patchouli_common::libraries::DbLibraryConfig;
+		use either::Either;
 		use futures::stream::FuturesUnordered;
 
 		macro_rules! try_result {
@@ -208,6 +210,41 @@ impl Fairing for DatabaseManager {
 		let new_version = try_result!(get_version!());
 		if new_version > version {
 			console_log!("Migrated", "database to v{new_version}");
+		}
+		// Create default admin user
+		let user_count = try_result!(
+			sqlx::query_scalar!("SELECT count(*) FROM users")
+				.fetch_one(&mut db)
+				.await
+		);
+		if user_count == 0 {
+			const ADMIN_USERNAME: &str = "admin";
+			const ADMIN_PASSWORD: &str = "admin";
+
+			match tasks::hash_passwd(ADMIN_PASSWORD) {
+				Ok(enc) => {
+					try_result!(
+						sqlx::query!(
+							"INSERT INTO users (name, passwd) VALUES (?, ?)",
+							ADMIN_USERNAME,
+							enc
+						)
+						.execute(&mut db)
+						.await
+					);
+				}
+				Err(err) => {
+					match err {
+						Either::Left(err) => {
+							console_error!("RNG error", "{err}");
+						}
+						Either::Right(err) => {
+							console_error!("Crypto error", "{err}");
+						}
+					}
+					return Err(rocket);
+				}
+			}
 		}
 		// Index library contents
 		let libraries = try_result!(

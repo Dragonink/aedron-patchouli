@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-/// API endpoint for requests about libraries
+/// API endpoint for requests about media
 pub const API_ENDPOINT: &str = constcat!(super::API_BASE, "/media");
 
 /// Common functions for media types

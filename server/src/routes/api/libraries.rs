@@ -1,5 +1,5 @@
 use crate::{
-	guards::{AdminUser, User},
+	guards::{AdminUser, RequiredAdminUser, RequiredUser},
 	routes::{library_kind_response_err, sqlx_response_err, SqlxResponseResult},
 	Database,
 };
@@ -12,7 +12,7 @@ use rocket::{
 	form::Form, http::Status, response::status::Created, serde::msgpack::MsgPack, Route, State,
 };
 use rocket_db_pools::Connection;
-use std::io;
+use std::{io, ops::Deref};
 
 #[non_exhaustive]
 #[derive(Debug, Clone, Responder)]
@@ -56,7 +56,7 @@ fn spawn_index_library_task(db_pool: &Database, mut db: Connection<Database>, id
 #[get("/")]
 async fn read_libraries(
 	mut db: Connection<Database>,
-	_user: &User,
+	_user: RequiredUser<'_>,
 ) -> SqlxResponseResult<MsgPack<Vec<PartialLibrary>>> {
 	let data = sqlx::query_as!(DbPartialLibrary, "SELECT id, name, kind FROM libraries")
 		.fetch_all(&mut *db)
@@ -65,7 +65,7 @@ async fn read_libraries(
 
 	Ok(MsgPack(
 		data.into_iter()
-			.map(|db_lib| db_lib.try_into())
+			.map(TryFrom::try_from)
 			.collect::<Result<_, _>>()
 			.map_err(library_kind_response_err)?,
 	))
@@ -75,7 +75,7 @@ async fn read_libraries(
 async fn create_library(
 	db_pool: &State<Database>,
 	mut db: Connection<Database>,
-	_admin: AdminUser<'_>,
+	_admin: RequiredAdminUser<'_>,
 	raw_config: Form<RawLibraryConfig>,
 ) -> SqlxResponseResult<Created<MsgPack<LibraryConfig>>> {
 	let db_config: DbRawLibraryConfig = raw_config.clone().into();
@@ -91,9 +91,9 @@ async fn create_library(
 	.map_err(sqlx_response_err)?;
 
 	spawn_index_library_task(db_pool, db, config.id);
-	let config: LibraryConfig = config.try_into().map_err(library_kind_response_err)?;
 
-	Ok(Created::new(format!("{API_ENDPOINT}/{}", config.id)).body(MsgPack(config)))
+	let config: LibraryConfig = config.try_into().map_err(library_kind_response_err)?;
+	Ok(Created::new(uri!(delete_library(config.id)).to_string()).body(MsgPack(config)))
 }
 
 #[get("/<id>?<config>&<full>")]
@@ -115,14 +115,16 @@ async fn read_library_config(
 			.and_then(|data| data.try_into().map_err(library_kind_response_err))
 			.map(|config| Either::Left(MsgPack(config)))
 	} else {
-		read_library(db, &admin, id, full).await.map(Either::Right)
+		read_library(db, admin.deref().into(), id, full)
+			.await
+			.map(Either::Right)
 	}
 }
 
 #[get("/<id>?<full>", rank = 2)]
 async fn read_library(
 	mut db: Connection<Database>,
-	_user: &User,
+	_user: RequiredUser<'_>,
 	id: u64,
 	full: bool,
 ) -> SqlxResponseResult<Either<MsgPack<PartialLibrary>, ResponseLibrary>> {
@@ -179,7 +181,7 @@ async fn read_library(
 async fn update_library(
 	db_pool: &State<Database>,
 	mut db: Connection<Database>,
-	_admin: AdminUser<'_>,
+	_admin: RequiredAdminUser<'_>,
 	id: u64,
 	config: Form<RawLibraryConfig>,
 ) -> SqlxResponseResult<Status> {
@@ -214,7 +216,7 @@ async fn update_library(
 #[delete("/<id>")]
 async fn delete_library(
 	mut db: Connection<Database>,
-	_admin: AdminUser<'_>,
+	_admin: RequiredAdminUser<'_>,
 	id: u64,
 ) -> SqlxResponseResult<Status> {
 	let id = id as i64;

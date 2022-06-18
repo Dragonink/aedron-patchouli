@@ -1,5 +1,29 @@
 {
   "db": "SQLite",
+  "00ca292889e7f420324a86f4e0612ea7e1d1665934689c6f5e20736c2f896e66": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int64"
+        },
+        {
+          "name": "name",
+          "ordinal": 1,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        false
+      ],
+      "parameters": {
+        "Right": 0
+      }
+    },
+    "query": "SELECT id, name FROM users"
+  },
   "0962e86c0b4d7cc24573b2282e79b8a254b7a3c641fe3012550d0f226dafa366": {
     "describe": {
       "columns": [
@@ -23,6 +47,30 @@
       }
     },
     "query": "SELECT id, title FROM media_image WHERE library = ?"
+  },
+  "0db832bb9b06777c2df090a8cc78bf424fe80515540853751dd75162779f50b1": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int64"
+        },
+        {
+          "name": "name",
+          "ordinal": 1,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        false
+      ],
+      "parameters": {
+        "Right": 2
+      }
+    },
+    "query": "INSERT INTO users (name, passwd) VALUES (?, ?) RETURNING id, name"
   },
   "1554e979625cdf12470507f94a515741005ad0222c288fea49c7411c19e42ee1": {
     "describe": {
@@ -164,6 +212,16 @@
     },
     "query": "DELETE FROM libraries WHERE id = ?"
   },
+  "31d271168f7f508e0baf82bd00b02dfc41e4d634cab295244cacb12264fb193f": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 2
+      }
+    },
+    "query": "UPDATE users SET name = ? WHERE id = ?"
+  },
   "37221bf1f711f3c22fc2812e2e137c8859a2328f3eb9146ed994c14c42dfe8c0": {
     "describe": {
       "columns": [
@@ -248,6 +306,30 @@
     },
     "query": "SELECT id, title, artist, album, track FROM media_music WHERE library = ?"
   },
+  "49c45eb88d304ce5838538f26ae93ab0959ae624c02c6ffe1043f360c3014ea4": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int64"
+        },
+        {
+          "name": "name",
+          "ordinal": 1,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        false
+      ],
+      "parameters": {
+        "Right": 1
+      }
+    },
+    "query": "SELECT id, name FROM users WHERE id = ?"
+  },
   "4ef9827939ca23ef69437ced1036ec754bc98abcf0d2c3fdfa84c4450d93c4b3": {
     "describe": {
       "columns": [
@@ -311,6 +393,34 @@
       }
     },
     "query": "SELECT paths FROM libraries WHERE id = ?"
+  },
+  "73ffdf5be39aa5c4c160c2f77d6634a6970eeb4e1d3395f045ded747f0ce9d2a": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 1
+      }
+    },
+    "query": "DELETE FROM users WHERE id = ?"
+  },
+  "7750f6ddb495fe929c5f009f3d80863ddf4d922035c6c87a23b22d3f48704028": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int64"
+        }
+      ],
+      "nullable": [
+        false
+      ],
+      "parameters": {
+        "Right": 1
+      }
+    },
+    "query": "SELECT id FROM users WHERE id = ?"
   },
   "a02cc183097f266ec6ea05dbb6babb0ef3f18c97cf84f3c737c04220b048c5b9": {
     "describe": {
@@ -393,5 +503,57 @@
       }
     },
     "query": "SELECT id, title, artist, album, track FROM media_music WHERE library = ? AND id = ?"
+  },
+  "eb9c3522711fa55228bdbb236d1c9a96632be3618ec5aa25a0411da35a5d83f7": {
+    "describe": {
+      "columns": [
+        {
+          "name": "count(*)",
+          "ordinal": 0,
+          "type_info": "Int"
+        }
+      ],
+      "nullable": [
+        false
+      ],
+      "parameters": {
+        "Right": 0
+      }
+    },
+    "query": "SELECT count(*) FROM users"
+  },
+  "f4f2f4735b98f34272e45cb2541f23f21a9e9d64a5116ff3fb9c04471e59cadb": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 2
+      }
+    },
+    "query": "INSERT INTO users (name, passwd) VALUES (?, ?)"
+  },
+  "fa0bb987c5869f938057571cf09603c32f9916caf0a0149a5f03e055b0e2e958": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int64"
+        },
+        {
+          "name": "passwd",
+          "ordinal": 1,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        false
+      ],
+      "parameters": {
+        "Right": 1
+      }
+    },
+    "query": "SELECT id, passwd FROM users WHERE name = ?"
   }
 }

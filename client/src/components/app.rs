@@ -18,6 +18,10 @@ pub(crate) fn App<G: Html>(cx: Scope) -> View<G> {
 						let route = route.get();
 						Some(format!("{:?}", route.as_ref()))
 					})
+					.c(form()
+						.attr("method", "POST")
+						.attr("action", "/logout")
+						.c(button().attr("type", "submit").t("Logout")))
 					.dyn_c(move || {
 						let route = route.get();
 						match route.as_ref() {

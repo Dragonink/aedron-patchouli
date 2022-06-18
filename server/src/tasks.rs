@@ -1,5 +1,6 @@
 use crate::Database;
 use aedron_patchouli_common::libraries::{LibraryConfig, LibraryKind};
+use either::Either;
 use futures::{Stream, StreamExt};
 use std::{
 	collections::{HashSet, VecDeque},
@@ -199,4 +200,15 @@ pub(crate) async fn index_library(db: &Database, config: &LibraryConfig) {
 		count,
 		instant.elapsed().as_secs_f32()
 	);
+}
+
+pub(crate) fn hash_passwd(passwd: &str) -> Result<String, Either<rand::Error, argon2::Error>> {
+	use argon2::Config;
+	use rand::{rngs::OsRng, RngCore};
+	use std::mem;
+
+	let mut salt = [0u8; mem::size_of::<u64>()];
+	OsRng.try_fill_bytes(&mut salt).map_err(Either::Left)?;
+	let argon_cfg = Config::default();
+	argon2::hash_encoded(passwd.as_bytes(), &salt, &argon_cfg).map_err(Either::Right)
 }

@@ -1,5 +1,5 @@
 use crate::{
-	guards::User,
+	guards::RequiredUser,
 	routes::{fetch_library_kind, sqlx_response_err, SqlxResponseResult},
 	Database,
 };
@@ -35,7 +35,7 @@ responder_from_media! {
 #[get("/<library>/<media>")]
 async fn read_media(
 	mut db: Connection<Database>,
-	_user: &User,
+	_user: RequiredUser<'_>,
 	library: u64,
 	media: u64,
 ) -> SqlxResponseResult<ResponseMedia> {
