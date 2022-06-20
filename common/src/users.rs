@@ -3,6 +3,8 @@
 #[cfg(feature = "server_impls")]
 use rocket::form::FromForm;
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "server_impls")]
+use time::Duration;
 
 /// API endpoint for requests about users
 pub const API_ENDPOINT: &str = constcat!(super::API_BASE, "/users");
@@ -35,6 +37,24 @@ pub struct User {
 	pub id: u64,
 	/// Username
 	pub name: String,
+}
+
+/// Cookie containing user info
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+pub struct UserCookie {
+	/// If the user is admin
+	pub is_admin: bool,
+	/// Username
+	pub name: String,
+}
+impl UserCookie {
+	/// Name of the cookie
+	pub const COOKIE_NAME: &'static str = "user_info";
+}
+#[cfg(feature = "server_impls")]
+impl UserCookie {
+	/// Expiration duration of the cookie
+	pub const EXPIRE: Duration = Duration::WEEK;
 }
 
 #[cfg(feature = "server_impls")]

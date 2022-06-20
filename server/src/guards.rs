@@ -8,15 +8,18 @@ use std::ops::Deref;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(transparent)]
-pub(crate) struct User {
-	pub id: i64,
-}
+pub(crate) struct User(pub u64);
 impl User {
 	pub const COOKIE_NAME: &'static str = "user_id";
 
 	#[inline(always)]
-	const fn is_admin(&self) -> bool {
-		self.id == 1
+	pub const fn id(&self) -> u64 {
+		self.0
+	}
+
+	#[inline(always)]
+	pub const fn is_admin(&self) -> bool {
+		self.id() == 1
 	}
 }
 #[async_trait]
@@ -34,10 +37,11 @@ impl<'r> FromRequest<'r> for &'r User {
 					.cookies()
 					.get_private(User::COOKIE_NAME)
 					.and_then(|cookie| cookie.value().parse::<u64>().ok())? as i64;
-				sqlx::query_as!(User, "SELECT id FROM users WHERE id = ?", user_id)
+				let id: i64 = sqlx::query_scalar!("SELECT id FROM users WHERE id = ?", user_id)
 					.fetch_one(&mut *db)
 					.await
-					.ok()
+					.ok()?;
+				Some(User(id as u64))
 			})
 			.await;
 		user.as_ref().or_forward(())
@@ -86,6 +90,7 @@ impl<'r> Deref for RequiredUser<'r> {
 impl<'r> FromRequest<'r> for RequiredUser<'r> {
 	type Error = Option<<&'r User as FromRequest<'r>>::Error>;
 
+	#[inline]
 	async fn from_request(req: &'r Request<'_>) -> Outcome<Self, Self::Error> {
 		use rocket::http::Status;
 

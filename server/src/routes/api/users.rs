@@ -1,5 +1,5 @@
 use crate::{
-	guards::{RequiredAdminUser, RequiredUser},
+	guards::{RequiredAdminUser, RequiredUser, User as UserGuard},
 	routes::{sqlx_response_err, SqlxResponseResult},
 	Database,
 };
@@ -7,7 +7,7 @@ use aedron_patchouli_common::users::*;
 use either::Either;
 use rocket::{
 	form::{Form, Strict},
-	http::Status,
+	http::{CookieJar, Status},
 	response::status::Created,
 	serde::msgpack::MsgPack,
 	Route,
@@ -54,27 +54,13 @@ async fn create_user(
 	Ok(Created::new(uri!(delete_user(user.id)).to_string()).body(MsgPack(user)))
 }
 
-#[get("/<id>")]
-async fn admin_read_user(
-	mut db: Connection<Database>,
-	_admin: RequiredAdminUser<'_>,
-	id: u64,
-) -> SqlxResponseResult<MsgPack<User>> {
-	let id = id as i64;
-	let user = sqlx::query_as!(DbUser, "SELECT id, name FROM users WHERE id = ?", id)
-		.fetch_one(&mut *db)
-		.await
-		.map_err(sqlx_response_err)?;
-
-	Ok(MsgPack(user.into()))
-}
-
 #[get("/me")]
 async fn read_user(
 	mut db: Connection<Database>,
 	user: RequiredUser<'_>,
 ) -> SqlxResponseResult<MsgPack<User>> {
-	let data = sqlx::query_as!(DbUser, "SELECT id, name FROM users WHERE id = ?", user.id)
+	let id = user.id() as i64;
+	let data = sqlx::query_as!(DbUser, "SELECT id, name FROM users WHERE id = ?", id)
 		.fetch_one(&mut *db)
 		.await
 		.map_err(sqlx_response_err)?;
@@ -82,30 +68,66 @@ async fn read_user(
 	Ok(MsgPack(data.into()))
 }
 
-#[put("/<id>", data = "<data>")]
+#[get("/<id>")]
+async fn admin_read_user(
+	db: Connection<Database>,
+	_admin: RequiredAdminUser<'_>,
+	id: u64,
+) -> SqlxResponseResult<MsgPack<User>> {
+	let user = UserGuard(id);
+	read_user(db, (&user).into()).await
+}
+
+#[put("/me", data = "<data>")]
 async fn update_user(
 	mut db: Connection<Database>,
+	jar: Option<&CookieJar<'_>>,
 	user: RequiredUser<'_>,
-	admin: Option<RequiredAdminUser<'_>>,
+	data: Form<UserConfig>,
+) -> SqlxResponseResult<Status> {
+	use rocket::{http::Cookie, serde::json};
+	use time::OffsetDateTime;
+
+	let id = user.id() as i64;
+	if let Some(db_user) = sqlx::query_as!(
+		DbUser,
+		"UPDATE users SET name = ? WHERE id = ? RETURNING id, name",
+		data.name,
+		id
+	)
+	.fetch_optional(&mut *db)
+	.await
+	.map_err(sqlx_response_err)?
+	{
+		if let Some(jar) = jar {
+			jar.add(
+				Cookie::build(
+					UserCookie::COOKIE_NAME,
+					json::to_string(&UserCookie {
+						is_admin: UserGuard(user.id()).is_admin(),
+						name: db_user.name,
+					})
+					.map_err(|err| Either::Right(err.to_string()))?,
+				)
+				.expires(OffsetDateTime::now_utc() + UserCookie::EXPIRE)
+				.finish(),
+			);
+		}
+		Ok(Status::NoContent)
+	} else {
+		Ok(Status::NotFound)
+	}
+}
+
+#[put("/<id>", data = "<data>")]
+async fn admin_update_user(
+	db: Connection<Database>,
+	_admin: RequiredAdminUser<'_>,
 	id: u64,
 	data: Form<UserConfig>,
 ) -> SqlxResponseResult<Status> {
-	if user.id == id as i64 || admin.is_some() {
-		let id = id as i64;
-		let affected = sqlx::query!("UPDATE users SET name = ? WHERE id = ?", data.name, id)
-			.execute(&mut *db)
-			.await
-			.map_err(sqlx_response_err)?
-			.rows_affected();
-
-		Ok(if affected > 0 {
-			Status::NoContent
-		} else {
-			Status::NotFound
-		})
-	} else {
-		Ok(Status::Forbidden)
-	}
+	let user = UserGuard(id);
+	update_user(db, None, (&user).into(), data).await
 }
 
 #[delete("/<id>")]
@@ -133,9 +155,10 @@ pub(super) fn routes() -> Vec<Route> {
 	routes![
 		read_users,
 		create_user,
-		admin_read_user,
 		read_user,
+		admin_read_user,
 		update_user,
+		admin_update_user,
 		delete_user
 	]
 }

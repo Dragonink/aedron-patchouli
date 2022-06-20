@@ -212,16 +212,6 @@
     },
     "query": "DELETE FROM libraries WHERE id = ?"
   },
-  "31d271168f7f508e0baf82bd00b02dfc41e4d634cab295244cacb12264fb193f": {
-    "describe": {
-      "columns": [],
-      "nullable": [],
-      "parameters": {
-        "Right": 2
-      }
-    },
-    "query": "UPDATE users SET name = ? WHERE id = ?"
-  },
   "37221bf1f711f3c22fc2812e2e137c8859a2328f3eb9146ed994c14c42dfe8c0": {
     "describe": {
       "columns": [
@@ -422,6 +412,30 @@
     },
     "query": "SELECT id FROM users WHERE id = ?"
   },
+  "91e594b6791ba6b68e67c8bf40bee1f4a672b8a19abea65bc311de637e69b2f2": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int64"
+        },
+        {
+          "name": "name",
+          "ordinal": 1,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        false
+      ],
+      "parameters": {
+        "Right": 2
+      }
+    },
+    "query": "UPDATE users SET name = ? WHERE id = ? RETURNING id, name"
+  },
   "a02cc183097f266ec6ea05dbb6babb0ef3f18c97cf84f3c737c04220b048c5b9": {
     "describe": {
       "columns": [],
@@ -532,7 +546,7 @@
     },
     "query": "INSERT INTO users (name, passwd) VALUES (?, ?)"
   },
-  "fa0bb987c5869f938057571cf09603c32f9916caf0a0149a5f03e055b0e2e958": {
+  "fbf4d83d9836cf85d01059e679bcbf7dc463eea0579afacc0267f0f8c33640d3": {
     "describe": {
       "columns": [
         {
@@ -541,12 +555,18 @@
           "type_info": "Int64"
         },
         {
-          "name": "passwd",
+          "name": "name",
           "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "passwd",
+          "ordinal": 2,
           "type_info": "Text"
         }
       ],
       "nullable": [
+        false,
         false,
         false
       ],
@@ -554,6 +574,6 @@
         "Right": 1
       }
     },
-    "query": "SELECT id, passwd FROM users WHERE name = ?"
+    "query": "SELECT * FROM users WHERE name = ?"
   }
 }

@@ -13,8 +13,9 @@ use rocket::{
 	fairing::{self, Fairing, Info},
 	Build, Orbit, Rocket,
 };
-use rocket_db_pools::{sqlx::SqlitePool, Database as IDatabase, Pool};
+use rocket_db_pools::{Database as IDatabase, Pool};
 use serde::{de::IntoDeserializer, Deserialize, Serialize};
+use sqlx::SqlitePool;
 use std::net::IpAddr;
 
 #[macro_use]

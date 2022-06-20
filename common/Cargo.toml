@@ -7,7 +7,7 @@ edition = "2021"
 publish = false
 
 [features]
-server_impls = ["dep:rocket"]
+server_impls = ["dep:rocket", "dep:time"]
 
 [dependencies]
 constcat = "0"
@@ -20,3 +20,6 @@ default-features = false
 [dependencies.serde]
 version = "1"
 features = ["derive"]
+[dependencies.time]
+optional = true
+version = "0"

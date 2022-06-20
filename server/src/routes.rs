@@ -23,6 +23,7 @@ fn library_kind_response_err(_: u8) -> SqlxResponseError {
 	Either::Right("invalid value for LibraryKind".to_string())
 }
 
+#[inline]
 async fn fetch_library_kind(
 	db: &mut Connection<Database>,
 	library: i64,
@@ -38,7 +39,7 @@ async fn fetch_library_kind(
 
 mod user_session {
 	use crate::{guards::User, Database};
-	use aedron_patchouli_common::users::UserCreds;
+	use aedron_patchouli_common::users::{UserCookie, UserCreds};
 	use rocket::{
 		form::{Form, Strict},
 		http::CookieJar,
@@ -49,7 +50,17 @@ mod user_session {
 
 	struct SecUser {
 		id: i64,
+		name: String,
 		passwd: String,
+	}
+	impl From<SecUser> for UserCookie {
+		#[inline(always)]
+		fn from(user: SecUser) -> Self {
+			Self {
+				is_admin: User(user.id as u64).is_admin(),
+				name: user.name,
+			}
+		}
 	}
 
 	#[post("/login", data = "<creds>")]
@@ -58,7 +69,9 @@ mod user_session {
 		jar: &CookieJar<'_>,
 		creds: Form<Strict<UserCreds>>,
 	) -> Result<Redirect, Flash<Redirect>> {
-		use rocket::http::Cookie;
+		use aedron_patchouli_common::users::UserCookie;
+		use rocket::{http::Cookie, serde::json};
+		use time::OffsetDateTime;
 
 		let flash_error = || {
 			Flash::error(
@@ -67,22 +80,30 @@ mod user_session {
 			)
 		};
 
-		let user = sqlx::query_as!(
-			SecUser,
-			"SELECT id, passwd FROM users WHERE name = ?",
-			creds.name
-		)
-		.fetch_one(&mut *db)
-		.await
-		.map_err(|err| {
-			console_warn!("Database error", "{err}");
-			flash_error()
-		})?;
+		let user = sqlx::query_as!(SecUser, "SELECT * FROM users WHERE name = ?", creds.name)
+			.fetch_one(&mut *db)
+			.await
+			.map_err(|err| {
+				console_warn!("Database error", "{err}");
+				flash_error()
+			})?;
 		match argon2::verify_encoded(&user.passwd, creds.passwd.as_bytes()) {
 			Ok(true) => {
-				let mut cookie = Cookie::new(User::COOKIE_NAME, format!("{}", user.id));
-				cookie.set_secure(true);
-				jar.add_private(cookie);
+				let expire = OffsetDateTime::now_utc() + UserCookie::EXPIRE;
+				jar.add_private(
+					Cookie::build(User::COOKIE_NAME, format!("{}", user.id))
+						.secure(true)
+						.expires(expire)
+						.finish(),
+				);
+				jar.add(
+					Cookie::build(
+						UserCookie::COOKIE_NAME,
+						json::to_string(&UserCookie::from(user)).map_err(|_err| flash_error())?,
+					)
+					.expires(expire)
+					.finish(),
+				);
 				Ok(Redirect::to(uri!(super::assets::index_page(""))))
 			}
 			Ok(false) => Err(Flash::error(

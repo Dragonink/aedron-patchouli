@@ -21,6 +21,7 @@ dependencies = [
  "js-sys",
  "rmp-serde",
  "serde",
+ "serde_json",
  "sycamore",
  "sycamore-router",
  "wasm-bindgen",
@@ -38,6 +39,7 @@ dependencies = [
  "enum-iterator",
  "rocket",
  "serde",
+ "time",
 ]
 
 [[package]]
@@ -56,6 +58,7 @@ dependencies = [
  "rust-argon2",
  "serde",
  "sqlx",
+ "time",
  "tokio",
  "yansi",
 ]
@@ -1387,6 +1390,7 @@ dependencies = [
  "rocket_codegen",
  "rocket_http",
  "serde",
+ "serde_json",
  "state",
  "tempfile",
  "time",

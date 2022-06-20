@@ -3,6 +3,7 @@ use sycamore::prelude::*;
 #[component]
 pub(crate) fn App<G: Html>(cx: Scope) -> View<G> {
 	use crate::router::Route;
+	use aedron_patchouli_common::users::UserCookie;
 	use sycamore::builder::prelude::*;
 	use sycamore_router::{HistoryIntegration, Router, RouterProps};
 
@@ -21,6 +22,10 @@ pub(crate) fn App<G: Html>(cx: Scope) -> View<G> {
 					.c(form()
 						.attr("method", "POST")
 						.attr("action", "/logout")
+						.c(p().t("Connected as ").c(b().dyn_t(move || {
+							let user: &UserCookie = use_context(cx);
+							create_ref(cx, user.name.clone())
+						})))
 						.c(button().attr("type", "submit").t("Logout")))
 					.dyn_c(move || {
 						let route = route.get();

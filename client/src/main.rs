@@ -1,6 +1,7 @@
 #![forbid(unsafe_code)]
 #![deny(unused_must_use)]
 
+use aedron_patchouli_common::users::UserCookie;
 use serde::de::DeserializeOwned;
 use wasm_bindgen::{prelude::*, JsCast};
 use web_sys::Request;
@@ -12,13 +13,41 @@ static ALLOC: WeeAlloc = WeeAlloc::INIT;
 mod components;
 mod router;
 
+fn extract_user_info(cookies: &str) -> Option<UserCookie> {
+	cookies
+		.split(';')
+		.find_map(|s| {
+			let s = s.trim();
+			s.starts_with(&format!("{}=", UserCookie::COOKIE_NAME))
+				.then(move || s.split('=').last().unwrap_throw().to_string())
+		})
+		.and_then(|uri_enc| {
+			let json: String = js_sys::decode_uri_component(&uri_enc).unwrap_throw().into();
+			serde_json::from_str(&json)
+				.map_err(|err| {
+					web_sys::console::error_1(&err.to_string().into());
+				})
+				.ok()
+		})
+}
+
 #[wasm_bindgen(start)]
 pub fn start() {
 	use components::App;
+	use web_sys::HtmlDocument;
 
 	std::panic::set_hook(Box::new(console_error_panic_hook::hook));
 
-	sycamore::render(|cx| App(cx));
+	sycamore::render(|cx| {
+		let doc: HtmlDocument = web_sys::window()
+			.and_then(|window| window.document())
+			.unwrap_throw()
+			.unchecked_into();
+		let user_info = extract_user_info(&doc.cookie().unwrap_throw()).unwrap_throw();
+		sycamore::reactive::provide_context(cx, user_info);
+
+		App(cx)
+	});
 }
 
 async fn send_api(req: &Request) -> Result<u16, JsValue> {
