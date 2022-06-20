@@ -299,9 +299,11 @@ async fn rocket() -> _ {
 		providers::{Format, Toml},
 		Figment,
 	};
+	use rocket::fairing::AdHoc;
 	use std::{path::Path, process};
+	use yansi::Paint;
 
-	yansi::Paint::enable_windows_ascii();
+	Paint::enable_windows_ascii();
 
 	const STATIC_CONFIG: &str = include_static_config!("src/Rocket.toml");
 	let rocket_config = rocket::Config::default();
@@ -332,6 +334,17 @@ async fn rocket() -> _ {
 	routes::mount(
 		rocket::custom(figment)
 			.attach(Database::init())
-			.attach(DatabaseManager),
+			.attach(DatabaseManager)
+			.attach(AdHoc::on_liftoff("Liftoff Announcer", |rocket| {
+				Box::pin(async move {
+					let config = rocket.config();
+					console_log!(
+						"LAUNCHED SERVER",
+						"from {}",
+						Paint::new(format!("http://{}:{}/", config.address, config.port))
+							.underline()
+					);
+				})
+			})),
 	)
 }
