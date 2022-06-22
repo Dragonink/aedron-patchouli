@@ -86,7 +86,6 @@ async fn update_user(
 	data: Form<UserConfig>,
 ) -> SqlxResponseResult<Status> {
 	use rocket::{http::Cookie, serde::json};
-	use time::OffsetDateTime;
 
 	let id = user.id() as i64;
 	if let Some(db_user) = sqlx::query_as!(
@@ -100,18 +99,18 @@ async fn update_user(
 	.map_err(sqlx_response_err)?
 	{
 		if let Some(jar) = jar {
-			jar.add(
-				Cookie::build(
-					UserCookie::COOKIE_NAME,
-					json::to_string(&UserCookie {
-						is_admin: UserGuard(user.id()).is_admin(),
-						name: db_user.name,
-					})
-					.map_err(|err| Either::Right(err.to_string()))?,
-				)
-				.expires(OffsetDateTime::now_utc() + UserCookie::EXPIRE)
-				.finish(),
+			let mut cookie = Cookie::new(
+				UserCookie::COOKIE_NAME,
+				json::to_string(&UserCookie {
+					is_admin: UserGuard(user.id()).is_admin(),
+					name: db_user.name,
+				})
+				.map_err(|err| Either::Right(err.to_string()))?,
 			);
+			if let Some(expiry) = jar.get_private(UserGuard::COOKIE_NAME).unwrap().expires() {
+				cookie.set_expires(expiry);
+			}
+			jar.add(cookie);
 		}
 		Ok(Status::NoContent)
 	} else {

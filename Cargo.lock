@@ -838,9 +838,9 @@ dependencies = [
 
 [[package]]
 name = "indexmap"
-version = "1.9.0"
+version = "1.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6c6392766afd7964e2531940894cffe4bd8d7d17dbc3c1c4857040fd4b33bdb3"
+checksum = "10a35a97730320ffe8e2d410b5d3b69279b98d2c14bdb8b70ea89ecf7888d41e"
 dependencies = [
  "autocfg",
  "hashbrown 0.12.1",
@@ -1366,7 +1366,7 @@ dependencies = [
 [[package]]
 name = "rocket"
 version = "0.5.0-rc.2"
-source = "git+https://github.com/SergioBenitez/Rocket#2fc4b156ebcc3e7220159dd638286e8d890cccba"
+source = "git+https://github.com/SergioBenitez/Rocket#ef2538f22275aeb5ce31f81dec8907b85b0f53db"
 dependencies = [
  "async-stream",
  "async-trait",
@@ -1405,7 +1405,7 @@ dependencies = [
 [[package]]
 name = "rocket_codegen"
 version = "0.5.0-rc.2"
-source = "git+https://github.com/SergioBenitez/Rocket#2fc4b156ebcc3e7220159dd638286e8d890cccba"
+source = "git+https://github.com/SergioBenitez/Rocket#ef2538f22275aeb5ce31f81dec8907b85b0f53db"
 dependencies = [
  "devise",
  "glob",
@@ -1420,7 +1420,7 @@ dependencies = [
 [[package]]
 name = "rocket_db_pools"
 version = "0.1.0-rc.2"
-source = "git+https://github.com/SergioBenitez/Rocket#2fc4b156ebcc3e7220159dd638286e8d890cccba"
+source = "git+https://github.com/SergioBenitez/Rocket#ef2538f22275aeb5ce31f81dec8907b85b0f53db"
 dependencies = [
  "rocket",
  "rocket_db_pools_codegen",
@@ -1431,7 +1431,7 @@ dependencies = [
 [[package]]
 name = "rocket_db_pools_codegen"
 version = "0.1.0-rc.2"
-source = "git+https://github.com/SergioBenitez/Rocket#2fc4b156ebcc3e7220159dd638286e8d890cccba"
+source = "git+https://github.com/SergioBenitez/Rocket#ef2538f22275aeb5ce31f81dec8907b85b0f53db"
 dependencies = [
  "devise",
  "quote",
@@ -1440,7 +1440,7 @@ dependencies = [
 [[package]]
 name = "rocket_http"
 version = "0.5.0-rc.2"
-source = "git+https://github.com/SergioBenitez/Rocket#2fc4b156ebcc3e7220159dd638286e8d890cccba"
+source = "git+https://github.com/SergioBenitez/Rocket#ef2538f22275aeb5ce31f81dec8907b85b0f53db"
 dependencies = [
  "cookie",
  "either",
@@ -1763,7 +1763,7 @@ checksum = "6bdef32e8150c2a081110b42772ffe7d7c9032b606bc226c8260fd97e0976601"
 [[package]]
 name = "sycamore"
 version = "0.8.0-beta.6"
-source = "git+https://github.com/sycamore-rs/sycamore#adc2abb59bd595da694438c0ae906eec797a8385"
+source = "git+https://github.com/sycamore-rs/sycamore#1c06c9b41bfd6e657bfc7f5d12d4c40b8d006a20"
 dependencies = [
  "ahash",
  "futures",
@@ -1783,7 +1783,7 @@ dependencies = [
 [[package]]
 name = "sycamore-core"
 version = "0.8.0-beta.6"
-source = "git+https://github.com/sycamore-rs/sycamore#adc2abb59bd595da694438c0ae906eec797a8385"
+source = "git+https://github.com/sycamore-rs/sycamore#1c06c9b41bfd6e657bfc7f5d12d4c40b8d006a20"
 dependencies = [
  "ahash",
  "sycamore-reactive",
@@ -1792,7 +1792,7 @@ dependencies = [
 [[package]]
 name = "sycamore-futures"
 version = "0.8.0-beta.6"
-source = "git+https://github.com/sycamore-rs/sycamore#adc2abb59bd595da694438c0ae906eec797a8385"
+source = "git+https://github.com/sycamore-rs/sycamore#1c06c9b41bfd6e657bfc7f5d12d4c40b8d006a20"
 dependencies = [
  "futures",
  "sycamore-reactive",
@@ -1803,7 +1803,7 @@ dependencies = [
 [[package]]
 name = "sycamore-macro"
 version = "0.8.0-beta.6"
-source = "git+https://github.com/sycamore-rs/sycamore#adc2abb59bd595da694438c0ae906eec797a8385"
+source = "git+https://github.com/sycamore-rs/sycamore#1c06c9b41bfd6e657bfc7f5d12d4c40b8d006a20"
 dependencies = [
  "once_cell",
  "proc-macro2",
@@ -1814,7 +1814,7 @@ dependencies = [
 [[package]]
 name = "sycamore-reactive"
 version = "0.8.0-beta.6"
-source = "git+https://github.com/sycamore-rs/sycamore#adc2abb59bd595da694438c0ae906eec797a8385"
+source = "git+https://github.com/sycamore-rs/sycamore#1c06c9b41bfd6e657bfc7f5d12d4c40b8d006a20"
 dependencies = [
  "ahash",
  "bumpalo",
@@ -1826,7 +1826,7 @@ dependencies = [
 [[package]]
 name = "sycamore-router"
 version = "0.8.0-beta.6"
-source = "git+https://github.com/sycamore-rs/sycamore#adc2abb59bd595da694438c0ae906eec797a8385"
+source = "git+https://github.com/sycamore-rs/sycamore#1c06c9b41bfd6e657bfc7f5d12d4c40b8d006a20"
 dependencies = [
  "sycamore",
  "sycamore-router-macro",
@@ -1837,7 +1837,7 @@ dependencies = [
 [[package]]
 name = "sycamore-router-macro"
 version = "0.8.0-beta.6"
-source = "git+https://github.com/sycamore-rs/sycamore#adc2abb59bd595da694438c0ae906eec797a8385"
+source = "git+https://github.com/sycamore-rs/sycamore#1c06c9b41bfd6e657bfc7f5d12d4c40b8d006a20"
 dependencies = [
  "nom",
  "proc-macro2",
@@ -1849,7 +1849,7 @@ dependencies = [
 [[package]]
 name = "sycamore-web"
 version = "0.8.0-beta.6"
-source = "git+https://github.com/sycamore-rs/sycamore#adc2abb59bd595da694438c0ae906eec797a8385"
+source = "git+https://github.com/sycamore-rs/sycamore#1c06c9b41bfd6e657bfc7f5d12d4c40b8d006a20"
 dependencies = [
  "html-escape",
  "indexmap",
@@ -1917,9 +1917,9 @@ dependencies = [
 
 [[package]]
 name = "time"
-version = "0.3.10"
+version = "0.3.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "82501a4c1c0330d640a6e176a3d6a204f5ec5237aca029029d21864a902e27b0"
+checksum = "72c91f41dcb2f096c05f0873d667dceec1087ce5bcf984ec8ffb19acddbb3217"
 dependencies = [
  "itoa",
  "libc",
