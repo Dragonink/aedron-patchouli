@@ -122,6 +122,7 @@ mod user_session {
 		use rocket::http::Cookie;
 
 		jar.remove_private(Cookie::named(User::COOKIE_NAME));
+		jar.remove(Cookie::named(UserCookie::COOKIE_NAME));
 		Flash::success(
 			Redirect::to(uri!(super::assets::login_page)),
 			"Successfully logged out.",

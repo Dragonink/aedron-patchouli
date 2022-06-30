@@ -23,9 +23,9 @@ impl Display for Route {
 			"/{}",
 			match self {
 				Self::Home => "".to_string(),
-				Self::Dashboard(route) => format!("/dashboard/{route}"),
-				Self::Library { id } => format!("/library/{id}"),
-				Self::Media { library, media } => format!("/media/{library}/{media}"),
+				Self::Dashboard(route) => format!("dashboard{route}"),
+				Self::Library { id } => format!("library/{id}"),
+				Self::Media { library, media } => format!("media/{library}/{media}"),
 				Self::NotFound => "404".to_string(),
 			}
 		)

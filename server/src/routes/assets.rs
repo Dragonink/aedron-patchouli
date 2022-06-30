@@ -62,7 +62,7 @@ pub(super) fn index_page(accept: &Accept, _user: &User) -> Either<RawHtml<&'stat
 #[get("/login")]
 #[inline]
 pub(super) fn login(_user: &User) -> Redirect {
-	Redirect::to(uri!(index_page("/")))
+	Redirect::to(uri!(index_page("")))
 }
 
 #[cfg(debug_assertions)]

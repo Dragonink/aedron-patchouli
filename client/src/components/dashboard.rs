@@ -1,4 +1,4 @@
-use crate::router::DashboardRoute;
+use crate::router::{DashboardRoute, Route};
 use sycamore::prelude::*;
 
 #[component]
@@ -10,9 +10,19 @@ pub(super) fn Dashboard<G: Html>(cx: Scope, route: &DashboardRoute) -> View<G> {
 			.c(nav().c(ul().c(View::new_fragment(
 				enum_iterator::all::<DashboardRoute>()
 					.filter(|route| route.ne(&DashboardRoute::NotFound))
-					.map(|route| li().c(a().attr("href", route.to_string())).view(cx))
+					.map(|route| {
+						let txt = create_ref(cx, format!("{route:?}"));
+
+						li().c(a().attr("href", Route::Dashboard(route).to_string()).t(txt))
+							.view(cx)
+					})
 					.collect(),
 			))))
+			.c(form()
+				.attr("method", "post")
+				.attr("action", "/logout")
+				.c(button().attr("type", "submit").t("Logout"))
+				.view(cx))
 			.view(cx),
 		match route {
 			DashboardRoute::Profile => Profile(cx),
