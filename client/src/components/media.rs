@@ -1,5 +1,5 @@
+use crate::UnwrapThrow;
 use sycamore::{component::Prop, prelude::*};
-use wasm_bindgen::UnwrapThrowExt;
 
 #[derive(Prop)]
 pub(super) struct MediaProps {

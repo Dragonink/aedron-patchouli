@@ -1,6 +1,6 @@
+use crate::UnwrapThrow;
 use aedron_patchouli_common::libraries::Library;
 use sycamore::{component::Prop, prelude::*};
-use wasm_bindgen::UnwrapThrowExt;
 
 #[component]
 pub(super) fn Library<G: Html>(cx: Scope, id: u64) -> View<G> {

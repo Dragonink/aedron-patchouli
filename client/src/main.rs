@@ -3,12 +3,81 @@
 
 use aedron_patchouli_common::users::UserCookie;
 use serde::de::DeserializeOwned;
-use wasm_bindgen::{prelude::*, JsCast};
+use std::fmt::Debug;
+use wasm_bindgen::{prelude::wasm_bindgen, JsCast, JsValue};
 use web_sys::Request;
 use wee_alloc::WeeAlloc;
 
 #[global_allocator]
 static ALLOC: WeeAlloc = WeeAlloc::INIT;
+
+/// Custom implementation of [`wasm_bindgen::UnwrapThrowExt`] to print errors and panic locations
+trait UnwrapThrow<T>: Sized {
+	#[track_caller]
+	fn expect_throw(self, msg: &str) -> T;
+
+	#[track_caller]
+	#[inline]
+	fn unwrap_throw(self) -> T {
+		self.expect_throw("`unwrap_throw` failed")
+	}
+}
+impl<T> UnwrapThrow<T> for Option<T> {
+	#[track_caller]
+	fn expect_throw(self, msg: &str) -> T {
+		use std::panic::Location;
+
+		match self {
+			Some(val) => val,
+			None => {
+				let loc = Location::caller();
+				wasm_bindgen::throw_str(&format!(
+					"{msg} (at {file}:{line}:{col})",
+					file = loc.file(),
+					line = loc.line(),
+					col = loc.column()
+				))
+			}
+		}
+	}
+
+	#[track_caller]
+	#[inline]
+	fn unwrap_throw(self) -> T {
+		self.expect_throw("expected `Some` value")
+	}
+}
+impl<T, E> UnwrapThrow<T> for Result<T, E>
+where
+	E: Debug,
+{
+	#[track_caller]
+	fn expect_throw(self, msg: &str) -> T {
+		use std::panic::Location;
+
+		match self {
+			Ok(val) => val,
+			Err(_) => {
+				let loc = Location::caller();
+				wasm_bindgen::throw_str(&format!(
+					"{msg} (at {file}:{line}:{col})",
+					file = loc.file(),
+					line = loc.line(),
+					col = loc.column()
+				))
+			}
+		}
+	}
+
+	#[track_caller]
+	#[inline]
+	fn unwrap_throw(self) -> T {
+		match self {
+			Ok(val) => val,
+			Err(err) => Err(&err).expect_throw(&format!("{err:?}")),
+		}
+	}
+}
 
 mod components;
 mod router;

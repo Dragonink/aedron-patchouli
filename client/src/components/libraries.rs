@@ -1,7 +1,8 @@
+use crate::UnwrapThrow;
 use aedron_patchouli_common::libraries::{LibraryConfig, PartialLibrary};
 use std::{convert::Infallible, ops::Deref, str::FromStr};
 use sycamore::{component::Prop, prelude::*};
-use wasm_bindgen::{JsCast, UnwrapThrowExt};
+use wasm_bindgen::JsCast;
 
 #[component]
 pub(super) fn Libraries<G: Html>(cx: Scope) -> View<G> {
