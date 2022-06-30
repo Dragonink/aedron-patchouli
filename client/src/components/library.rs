@@ -1,4 +1,3 @@
-use crate::UnwrapThrow;
 use aedron_patchouli_common::libraries::Library;
 use sycamore::{component::Prop, prelude::*};
 
@@ -26,15 +25,14 @@ async fn FetchedLibrary<G: Html>(cx: Scope<'_>, id: u64) -> View<G> {
 	use sycamore::builder::prelude::*;
 	use web_sys::Request;
 
-	let mut req = Request::new_with_str(&format!("{API_ENDPOINT}/{id}")).unwrap_throw();
-	let library: PartialLibrary = crate::fetch_api(&req).await.unwrap_throw().unwrap_throw();
+	let mut req = Request::new_with_str(&format!("{API_ENDPOINT}/{id}")).unwrap();
+	let library: PartialLibrary = crate::fetch_api(&req).await.unwrap().unwrap();
 	let name = create_ref(cx, library.name);
 
-	req = Request::new_with_str(&format!("{API_ENDPOINT}/{id}?full=true")).unwrap_throw();
+	req = Request::new_with_str(&format!("{API_ENDPOINT}/{id}?full=true")).unwrap();
 	let frag = match library.kind {
 		LibraryKind::Image => {
-			let library: Library<MediaImage> =
-				crate::fetch_api(&req).await.unwrap_throw().unwrap_throw();
+			let library: Library<MediaImage> = crate::fetch_api(&req).await.unwrap().unwrap();
 			View::new_fragment(
 				library
 					.media
@@ -51,8 +49,7 @@ async fn FetchedLibrary<G: Html>(cx: Scope<'_>, id: u64) -> View<G> {
 			)
 		}
 		LibraryKind::Music => {
-			let library: Library<MediaMusic> =
-				crate::fetch_api(&req).await.unwrap_throw().unwrap_throw();
+			let library: Library<MediaMusic> = crate::fetch_api(&req).await.unwrap().unwrap();
 			View::new_fragment(
 				library
 					.media

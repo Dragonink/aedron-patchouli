@@ -3,7 +3,6 @@
 
 use aedron_patchouli_common::users::UserCookie;
 use serde::de::DeserializeOwned;
-use std::fmt::Debug;
 use wasm_bindgen::{prelude::wasm_bindgen, JsCast, JsValue};
 use web_sys::Request;
 use wee_alloc::WeeAlloc;
@@ -11,87 +10,19 @@ use wee_alloc::WeeAlloc;
 #[global_allocator]
 static ALLOC: WeeAlloc = WeeAlloc::INIT;
 
-/// Custom implementation of [`wasm_bindgen::UnwrapThrowExt`] to print errors and panic locations
-trait UnwrapThrow<T>: Sized {
-	#[track_caller]
-	fn expect_throw(self, msg: &str) -> T;
-
-	#[track_caller]
-	#[inline]
-	fn unwrap_throw(self) -> T {
-		self.expect_throw("`unwrap_throw` failed")
-	}
-}
-impl<T> UnwrapThrow<T> for Option<T> {
-	#[track_caller]
-	fn expect_throw(self, msg: &str) -> T {
-		use std::panic::Location;
-
-		match self {
-			Some(val) => val,
-			None => {
-				let loc = Location::caller();
-				wasm_bindgen::throw_str(&format!(
-					"{msg} (at {file}:{line}:{col})",
-					file = loc.file(),
-					line = loc.line(),
-					col = loc.column()
-				))
-			}
-		}
-	}
-
-	#[track_caller]
-	#[inline]
-	fn unwrap_throw(self) -> T {
-		self.expect_throw("expected `Some` value")
-	}
-}
-impl<T, E> UnwrapThrow<T> for Result<T, E>
-where
-	E: Debug,
-{
-	#[track_caller]
-	fn expect_throw(self, msg: &str) -> T {
-		use std::panic::Location;
-
-		match self {
-			Ok(val) => val,
-			Err(_) => {
-				let loc = Location::caller();
-				wasm_bindgen::throw_str(&format!(
-					"{msg} (at {file}:{line}:{col})",
-					file = loc.file(),
-					line = loc.line(),
-					col = loc.column()
-				))
-			}
-		}
-	}
-
-	#[track_caller]
-	#[inline]
-	fn unwrap_throw(self) -> T {
-		match self {
-			Ok(val) => val,
-			Err(err) => Err(&err).expect_throw(&format!("{err:?}")),
-		}
-	}
-}
-
 mod components;
 mod router;
 
 fn extract_user_info(cookies: &str) -> Option<UserCookie> {
 	cookies
 		.split(';')
-		.find_map(|s| {
-			let s = s.trim();
+		.find_map(|mut s| {
+			s = s.trim();
 			s.starts_with(&format!("{}=", UserCookie::COOKIE_NAME))
-				.then(move || s.split('=').last().unwrap_throw().to_string())
+				.then(move || s.split('=').last().unwrap().to_string())
 		})
 		.and_then(|uri_enc| {
-			let json: String = js_sys::decode_uri_component(&uri_enc).unwrap_throw().into();
+			let json: String = js_sys::decode_uri_component(&uri_enc).unwrap().into();
 			serde_json::from_str(&json)
 				.map_err(|err| {
 					web_sys::console::error_1(&err.to_string().into());
@@ -107,23 +38,26 @@ pub fn start() {
 
 	std::panic::set_hook(Box::new(console_error_panic_hook::hook));
 
-	sycamore::render(|cx| {
-		let doc: HtmlDocument = web_sys::window()
-			.and_then(|window| window.document())
-			.unwrap_throw()
-			.unchecked_into();
-		let user_info = extract_user_info(&doc.cookie().unwrap_throw()).unwrap_throw();
-		sycamore::reactive::provide_context(cx, user_info);
+	let document = web_sys::window()
+		.and_then(|window| window.document())
+		.unwrap();
+	sycamore::render_to(
+		|cx| {
+			let html_doc: &HtmlDocument = document.unchecked_ref();
+			let user_info = extract_user_info(&html_doc.cookie().unwrap()).unwrap();
+			sycamore::reactive::provide_context(cx, user_info);
 
-		App(cx)
-	});
+			App(cx)
+		},
+		&document.document_element().unwrap(),
+	);
 }
 
 async fn send_api(req: &Request) -> Result<u16, JsValue> {
 	use wasm_bindgen_futures::JsFuture;
 	use web_sys::Response;
 
-	let res: Response = JsFuture::from(web_sys::window().unwrap_throw().fetch_with_request(req))
+	let res: Response = JsFuture::from(web_sys::window().unwrap().fetch_with_request(req))
 		.await?
 		.unchecked_into();
 	Ok(res.status())
@@ -134,18 +68,16 @@ async fn fetch_api<T: DeserializeOwned>(req: &Request) -> Result<Result<T, u16>,
 	use wasm_bindgen_futures::JsFuture;
 	use web_sys::Response;
 
-	req.headers()
-		.set("accept", "application/msgpack")
-		.unwrap_throw();
-	let res: Response = JsFuture::from(web_sys::window().unwrap_throw().fetch_with_request(req))
+	req.headers().set("accept", "application/msgpack").unwrap();
+	let res: Response = JsFuture::from(web_sys::window().unwrap().fetch_with_request(req))
 		.await?
 		.unchecked_into();
 	if res.ok() {
-		let buf = JsFuture::from(res.array_buffer().unwrap_throw()).await?;
+		let buf = JsFuture::from(res.array_buffer().unwrap()).await?;
 		let mp = Uint8Array::new(&buf).to_vec();
 		Ok(Ok(rmp_serde::from_slice(&mp)
 			.map_err(|err| web_sys::console::error_1(&err.to_string().into()))
-			.unwrap_throw()))
+			.unwrap()))
 	} else {
 		Ok(Err(res.status()))
 	}

@@ -1,4 +1,3 @@
-use crate::UnwrapThrow;
 use sycamore::{component::Prop, prelude::*};
 
 #[derive(Prop)]
@@ -26,8 +25,8 @@ async fn MediaSwitch<G: Html>(cx: Scope<'_>, props: MediaProps) -> View<G> {
 	use aedron_patchouli_common::libraries::{LibraryKind, PartialLibrary, API_ENDPOINT};
 	use web_sys::Request;
 
-	let req = Request::new_with_str(&format!("{API_ENDPOINT}/{}", props.library)).unwrap_throw();
-	let library: PartialLibrary = crate::fetch_api(&req).await.unwrap_throw().unwrap_throw();
+	let req = Request::new_with_str(&format!("{API_ENDPOINT}/{}", props.library)).unwrap();
+	let library: PartialLibrary = crate::fetch_api(&req).await.unwrap().unwrap();
 
 	match library.kind {
 		LibraryKind::Image => MediaImage(cx, props),
@@ -44,9 +43,8 @@ async fn MediaImage<G: Html>(cx: Scope<'_>, props: MediaProps) -> View<G> {
 
 	let MediaProps { library, media } = props;
 
-	let req =
-		Request::new_with_str(&format!("{API_ENDPOINT}/{}/{}", library, media)).unwrap_throw();
-	let image: MediaImage = crate::fetch_api(&req).await.unwrap_throw().unwrap_throw();
+	let req = Request::new_with_str(&format!("{API_ENDPOINT}/{}/{}", library, media)).unwrap();
+	let image: MediaImage = crate::fetch_api(&req).await.unwrap().unwrap();
 	let title = create_ref(cx, image.title);
 
 	fragment([
@@ -65,9 +63,8 @@ async fn MediaMusic<G: Html>(cx: Scope<'_>, props: MediaProps) -> View<G> {
 
 	let MediaProps { library, media } = props;
 
-	let req =
-		Request::new_with_str(&format!("{API_ENDPOINT}/{}/{}", library, media)).unwrap_throw();
-	let image: MediaMusic = crate::fetch_api(&req).await.unwrap_throw().unwrap_throw();
+	let req = Request::new_with_str(&format!("{API_ENDPOINT}/{}/{}", library, media)).unwrap();
+	let image: MediaMusic = crate::fetch_api(&req).await.unwrap().unwrap();
 	let title = create_ref(cx, image.title);
 
 	fragment([

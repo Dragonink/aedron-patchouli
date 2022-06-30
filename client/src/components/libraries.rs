@@ -1,4 +1,3 @@
-use crate::UnwrapThrow;
 use aedron_patchouli_common::libraries::{LibraryConfig, PartialLibrary};
 use std::{convert::Infallible, ops::Deref, str::FromStr};
 use sycamore::{component::Prop, prelude::*};
@@ -59,8 +58,8 @@ async fn FetchedLibraries<'a, G: Html>(
 		libraries,
 	} = props;
 
-	let req = Request::new_with_str(API_ENDPOINT).unwrap_throw();
-	libraries.set(crate::fetch_api(&req).await.unwrap_throw().unwrap_throw());
+	let req = Request::new_with_str(API_ENDPOINT).unwrap();
+	libraries.set(crate::fetch_api(&req).await.unwrap().unwrap());
 	let props = IndexedProps::builder()
 		.iterable(libraries)
 		.view(move |cx, library| {
@@ -73,14 +72,14 @@ async fn FetchedLibraries<'a, G: Html>(
 							"{API_ENDPOINT}/{}?config=true",
 							library.id
 						))
-						.unwrap_throw();
+						.unwrap();
 						let dialog_el = dialog_ref
 							.get::<DomNode>()
 							.unchecked_into::<HtmlDialogElement>();
 						sycamore::futures::spawn_local_scoped(cx, async move {
-							let config = crate::fetch_api(&req).await.unwrap_throw().unwrap_throw();
+							let config = crate::fetch_api(&req).await.unwrap().unwrap();
 							managed_library_sig.modify().replace(config);
-							dialog_el.show_modal().unwrap_throw();
+							dialog_el.show_modal().unwrap();
 						});
 					})
 					.t("Manage"))
@@ -119,11 +118,11 @@ fn LibraryFormFields<G: Html>(cx: Scope, library: Option<LibraryConfig>) -> View
 			input()
 				.bind_value(value)
 				.dyn_attr("name", || (!value.get().is_empty()).then(|| "paths"))
-				.bool_attr("required", index.eq(paths_sig.get().first().unwrap_throw()))
+				.bool_attr("required", index.eq(paths_sig.get().first().unwrap()))
 				.on("input", move |_| {
 					// On input, if element is the last, append a new input
 					let paths = paths_sig.get();
-					let last_index = paths.last().unwrap_throw();
+					let last_index = paths.last().unwrap();
 					if index.eq(last_index) {
 						paths_sig.modify().push(*last_index + 1);
 					}
@@ -131,11 +130,11 @@ fn LibraryFormFields<G: Html>(cx: Scope, library: Option<LibraryConfig>) -> View
 				.on("blur", move |ev: Event| {
 					// On blur, if element is not the last and value not empty, remove element
 					let paths = paths_sig.get();
-					let last_index = paths.last().unwrap_throw();
+					let last_index = paths.last().unwrap();
 					if index < *last_index {
 						let val = ev
 							.target()
-							.unwrap_throw()
+							.unwrap()
 							.unchecked_into::<HtmlInputElement>()
 							.value();
 						if val.is_empty() {
@@ -201,30 +200,27 @@ fn CreateLibrary<'a, G: Html>(
 	use web_sys::{Event, FormData, HtmlFormElement, Request, RequestInit};
 
 	form()
-		.attr("method", "POST")
+		.attr("method", "post")
 		.attr("action", API_ENDPOINT)
 		.on("submit", move |ev: Event| {
 			ev.prevent_default();
-			let form = ev
-				.target()
-				.unwrap_throw()
-				.unchecked_into::<HtmlFormElement>();
-			let form_data = FormData::new_with_form(&form).unwrap_throw();
+			let form = ev.target().unwrap().unchecked_into::<HtmlFormElement>();
+			let form_data = FormData::new_with_form(&form).unwrap();
 			let mut req = RequestInit::new();
 			req.method(&form.method()).body(Some(form_data.deref()));
-			let req = Request::new_with_str_and_init(&form.action(), &req).unwrap_throw();
+			let req = Request::new_with_str_and_init(&form.action(), &req).unwrap();
 			sycamore::futures::spawn_local_scoped(cx, async move {
-				match crate::fetch_api::<LibraryConfig>(&req).await.unwrap_throw() {
+				match crate::fetch_api::<LibraryConfig>(&req).await.unwrap() {
 					Ok(lib) => {
 						libraries.modify().push(lib.into());
 					}
 					Err(_status) => {
 						web_sys::window()
-							.unwrap_throw()
+							.unwrap()
 							.alert_with_message(
 								"Something went wrong on the server.\nPlease try again.",
 							)
-							.unwrap_throw();
+							.unwrap();
 					}
 				}
 			});
@@ -293,38 +289,38 @@ fn ManageLibrary<'a, G: Html>(cx: Scope<'a>, props: ManageLibraryProps<'a, G>) -
 				.unchecked_into::<HtmlDialogElement>()
 				.return_value()
 				.parse()
-				.unwrap_throw()
+				.unwrap()
 			{
 				DialogValue::Cancel => {
 					return;
 				}
 				DialogValue::Delete => {
 					if !web_sys::window()
-						.unwrap_throw()
+						.unwrap()
 						.confirm_with_message(&format!(
 							"Are you sure you want to delete the library {:?}?\n(Worry not, your media files will not be deleted)",
 							library.name
 						))
-						.unwrap_throw()
+						.unwrap()
 					{
 						return;
 					}
 					req.method("DELETE");
 				}
 				DialogValue::Update(data) => {
-					let headers = Headers::new().unwrap_throw();
+					let headers = Headers::new().unwrap();
 					headers
 						.append("content-type", "application/x-www-form-urlencoded")
-						.unwrap_throw();
+						.unwrap();
 					req.method("PUT").headers(&headers).body(Some(&data.into()));
 				}
 			}
 			let req =
 				Request::new_with_str_and_init(&format!("{API_ENDPOINT}/{}", library.id), &req)
-					.unwrap_throw();
-			let location = web_sys::window().unwrap_throw().location();
+					.unwrap();
+			let location = web_sys::window().unwrap().location();
 			sycamore::futures::spawn_local_scoped(cx, async move {
-				let status = crate::send_api(&req).await.unwrap_throw();
+				let status = crate::send_api(&req).await.unwrap();
 				if status == 204 {
 					let _ = location.reload();
 				}
@@ -348,15 +344,15 @@ fn ManageLibrary<'a, G: Html>(cx: Scope<'a>, props: ManageLibraryProps<'a, G>) -
 				.on("click", |ev: Event| {
 					let btn = ev
 						.target()
-						.unwrap_throw()
+						.unwrap()
 						.unchecked_into::<HtmlButtonElement>();
 					let form = btn
 						.parent_element()
-						.unwrap_throw()
+						.unwrap()
 						.unchecked_into::<HtmlFormElement>();
-					let form_data = FormData::new_with_form(&form).unwrap_throw();
+					let form_data = FormData::new_with_form(&form).unwrap();
 					let search_params = UrlSearchParams::new_with_str_sequence_sequence(&form_data)
-						.unwrap_throw()
+						.unwrap()
 						.to_string();
 					btn.set_value(&String::from(&search_params));
 				})
