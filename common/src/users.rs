@@ -30,6 +30,18 @@ pub struct UserConfig {
 	pub name: String,
 }
 
+/// User password change form data
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[cfg_attr(feature = "server_impls", derive(FromForm))]
+pub struct UserPasswd {
+	/// Old password
+	#[cfg_attr(feature = "server_impls", field(validate = len(1..)))]
+	pub old: String,
+	/// New password
+	#[cfg_attr(feature = "server_impls", field(validate = len(1..)))]
+	pub new: String,
+}
+
 /// Properties of a user
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct User {

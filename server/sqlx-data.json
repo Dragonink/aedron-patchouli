@@ -356,6 +356,16 @@
     },
     "query": "INSERT INTO libraries (name, kind, paths) VALUES (?, ?, ?) RETURNING *"
   },
+  "59a3eef8eca88395947d18d2e9ff5990eb997cf73375881015c7e933a7da3127": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 2
+      }
+    },
+    "query": "UPDATE users SET passwd = ? WHERE id = ?"
+  },
   "5eb3dd981f2e103cfcbe0e3a361540a45a4feb979df418aff1421abd7e14cbd0": {
     "describe": {
       "columns": [],
@@ -445,6 +455,24 @@
       }
     },
     "query": "UPDATE libraries SET name = ?, kind = ?, paths = ? WHERE id = ?"
+  },
+  "c100410ce4d585bf5bf5ce9cb11f1f72804cb1f259984ca2b1ab882376b5e7f2": {
+    "describe": {
+      "columns": [
+        {
+          "name": "passwd",
+          "ordinal": 0,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false
+      ],
+      "parameters": {
+        "Right": 1
+      }
+    },
+    "query": "SELECT passwd FROM users WHERE id = ?"
   },
   "cccd8ea7442eb255979086c76c15ef018e21833aa151007cf132179fd8bb45b6": {
     "describe": {

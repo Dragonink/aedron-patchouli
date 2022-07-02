@@ -118,6 +118,40 @@ async fn update_user(
 	}
 }
 
+#[post("/me/passwd", data = "<data>")]
+async fn update_user_passwd(
+	mut db: Connection<Database>,
+	user: RequiredUser<'_>,
+	data: Form<Strict<UserPasswd>>,
+) -> SqlxResponseResult<Status> {
+	let id = user.id() as i64;
+	let current_passwd = sqlx::query_scalar!("SELECT passwd FROM users WHERE id = ?", id)
+		.fetch_one(&mut *db)
+		.await
+		.map_err(sqlx_response_err)?;
+	match argon2::verify_encoded(&current_passwd, data.old.as_bytes()) {
+		Ok(true) => {
+			let enc = crate::tasks::hash_passwd(&data.new).map_err(|err| {
+				Either::Right(match err {
+					Either::Left(err) => err.to_string(),
+					Either::Right(err) => err.to_string(),
+				})
+			})?;
+			sqlx::query!("UPDATE users SET passwd = ? WHERE id = ?", enc, id)
+				.persistent(false)
+				.execute(&mut *db)
+				.await
+				.map_err(sqlx_response_err)
+				.map(|_| Status::NoContent)
+		}
+		Ok(false) => Ok(Status::Forbidden),
+		Err(err) => {
+			console_warn!("Crypto error", "{err}");
+			Ok(Status::InternalServerError)
+		}
+	}
+}
+
 #[put("/<id>", data = "<data>")]
 async fn admin_update_user(
 	db: Connection<Database>,
@@ -157,6 +191,7 @@ pub(super) fn routes() -> Vec<Route> {
 		read_user,
 		admin_read_user,
 		update_user,
+		update_user_passwd,
 		admin_update_user,
 		delete_user
 	]
