@@ -1,0 +1,7 @@
+[target.wasm32-unknown-unknown]
+rustflags = [
+	"-Ctarget-feature=+reference-types,+atomics,+nontrapping-fptoint,+bulk-memory,+exception-handling,+sign-ext"
+	# Feature "multivalue" does not work for now (see https://github.com/rust-lang/rust/issues/73755)
+
+	# TODO should probably rebuild `std` with the features
+]
