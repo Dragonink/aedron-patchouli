@@ -1,4 +1,4 @@
-override MAKEFLAGS += -rR --no-print-directory
+override MAKEFLAGS += -rR
 
 cargo ?= cargo
 
@@ -8,10 +8,8 @@ export DATABASE_PATH := $(PWD)/db.sqlite
 .PHONY : client server
 .SILENT : client server
 client :
-	$(info >>> Making client...)
 	$(MAKE) -C $@
 server : client
-	$(info >>> Making server...)
 	$(MAKE) -C $@
 
 .PHONY : all

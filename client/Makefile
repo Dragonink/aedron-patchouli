@@ -1,4 +1,4 @@
-rwildcard = $(strip $(foreach d,$(wildcard $(patsubst %/,%,$1)/*),$(filter $(subst *,%,$2),$(d)) $(call rwildcard,$(d)/,$2)))
+include ../util.mk
 
 OUTPUT_PREFIX ?= index
 
@@ -15,8 +15,7 @@ out :
 #!SECTION
 
 #SECTION Rust
-extract_env = $(shell awk -F= '$$1=="$1"{print $$2}' build.env)
-RUST_CRATE_NAME := $(subst -,_,$(call extract_env,CARGO_PKG_NAME))
+RUST_CRATE_NAME := $(call get_cargo_pkg_name)
 RUST_TARGET := wasm32-unknown-unknown
 
 OUT_RUST_wasm := ../target/$(RUST_TARGET)/$(if $(RELEASE),release-wasm,debug)/$(RUST_CRATE_NAME).wasm

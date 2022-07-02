@@ -1,4 +1,4 @@
-rwildcard = $(strip $(foreach d,$(wildcard $(patsubst %/,%,$1)/*),$(filter $(subst *,%,$2),$(d)) $(call rwildcard,$(d)/,$2)))
+include ../util.mk
 
 cargo ?= cargo
 
@@ -6,8 +6,7 @@ cargo ?= cargo
 .EXTRA_PREREQS := Makefile
 
 #SECTION Rust
-extract_env = $(shell awk -F= '$$1=="$1"{print $$2}' build.env)
-RUST_CRATE_NAME := $(call extract_env,CARGO_PKG_NAME)
+RUST_CRATE_NAME := $(call get_cargo_pkg_name)
 
 IN_RUST := $(call rwildcard,src/,*.rs) $(call rwildcard,sql/,*.sql)
 OUT_RUST_exe := ../target/$(if $(RELEASE),release,debug)/$(RUST_CRATE_NAME)
