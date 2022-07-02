@@ -152,9 +152,13 @@ fn LibraryFormFields<G: Html>(cx: Scope, library: Option<LibraryConfig>) -> View
 			.c(input()
 				.attr("name", "name")
 				.bool_attr("required", true)
-				.dyn_attr("value", move || {
-					library.as_ref().map(|library| &library.name)
-				}))
+				.attr(
+					"value",
+					library
+						.as_ref()
+						.map(|library| library.name.clone())
+						.unwrap_or_default(),
+				))
 			.view(cx),
 		label()
 			.t("Type")
@@ -197,18 +201,13 @@ fn CreateLibrary<'a, G: Html>(
 ) -> View<G> {
 	use aedron_patchouli_common::libraries::{LibraryConfig, API_ENDPOINT};
 	use sycamore::builder::prelude::*;
-	use web_sys::{Event, FormData, HtmlFormElement, Request, RequestInit};
+	use web_sys::Event;
 
 	form()
 		.attr("method", "post")
 		.attr("action", API_ENDPOINT)
 		.on("submit", move |ev: Event| {
-			ev.prevent_default();
-			let form = ev.target().unwrap().unchecked_into::<HtmlFormElement>();
-			let form_data = FormData::new_with_form(&form).unwrap();
-			let mut req = RequestInit::new();
-			req.method(&form.method()).body(Some(form_data.deref()));
-			let req = Request::new_with_str_and_init(&form.action(), &req).unwrap();
+			let req = super::form_build_req(&ev);
 			sycamore::futures::spawn_local_scoped(cx, async move {
 				match crate::fetch_api::<LibraryConfig>(&req).await.unwrap() {
 					Ok(lib) => {
