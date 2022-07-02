@@ -1,10 +1,13 @@
 use crate::router::{DashboardRoute, Route};
-use sycamore::prelude::*;
+use aedron_patchouli_common::users::UserCookie;
+use sycamore::{component::Prop, prelude::*};
 use wasm_bindgen::JsCast;
 
 #[component]
 pub(super) fn Dashboard<G: Html>(cx: Scope, route: &DashboardRoute) -> View<G> {
 	use sycamore::builder::prelude::*;
+
+	let user: &UserCookie = use_context(cx);
 
 	fragment([
 		header()
@@ -26,19 +29,19 @@ pub(super) fn Dashboard<G: Html>(cx: Scope, route: &DashboardRoute) -> View<G> {
 				.view(cx))
 			.view(cx),
 		match route {
-			DashboardRoute::Profile => Profile(cx),
-			DashboardRoute::NotFound => t("not found"),
+			DashboardRoute::Profile => Profile(cx, user),
+			DashboardRoute::Users if user.is_admin => Users(cx),
+			_ => t("not found"),
 		},
 	])
 }
 
 #[component]
-fn Profile<G: Html>(cx: Scope) -> View<G> {
-	use aedron_patchouli_common::users::{UserCookie, API_ENDPOINT};
+fn Profile<'a, G: Html>(cx: Scope<'a>, user: &'a UserCookie) -> View<G> {
+	use aedron_patchouli_common::users::API_ENDPOINT;
 	use sycamore::builder::prelude::*;
 	use web_sys::{Event, HtmlInputElement};
 
-	let user: &UserCookie = use_context(cx);
 	let new_passwd = create_signal(cx, String::new());
 	let confirm_new_passwd = create_signal(cx, String::new());
 
@@ -121,4 +124,40 @@ fn Profile<G: Html>(cx: Scope) -> View<G> {
 				})))
 			.c(button().attr("type", "submit").t("Change password")))
 		.view(cx)
+}
+
+#[component]
+fn Users<G: Html>(cx: Scope) -> View<G> {
+	use sycamore::{
+		builder::prelude::*,
+		suspense::{Suspense, SuspenseProps},
+	};
+
+	let props = SuspenseProps::builder()
+		.children(Children::new(cx, |cx| FetchedUsers(cx)))
+		.fallback(t("Loading..."))
+		.build();
+
+	main().c(h1().t("Users")).c(Suspense(cx, props)).view(cx)
+}
+#[component]
+async fn FetchedUsers<G: Html>(cx: Scope<'_>) -> View<G> {
+	use aedron_patchouli_common::users::{User, API_ENDPOINT};
+	use sycamore::builder::prelude::*;
+	use web_sys::Request;
+
+	let req = Request::new_with_str(API_ENDPOINT).unwrap();
+	let users: Vec<User> = crate::fetch_api(&req).await.unwrap().unwrap();
+
+	ul().c(View::new_fragment(
+		users
+			.iter()
+			.map(|user| {
+				let name = create_ref(cx, user.name.clone());
+
+				li().t(name).view(cx)
+			})
+			.collect(),
+	))
+	.view(cx)
 }
