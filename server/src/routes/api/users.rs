@@ -118,6 +118,17 @@ async fn update_user(
 	}
 }
 
+#[put("/<id>", data = "<data>")]
+async fn admin_update_user(
+	db: Connection<Database>,
+	_admin: RequiredAdminUser<'_>,
+	id: u64,
+	data: Form<UserConfig>,
+) -> SqlxResponseResult<Status> {
+	let user = UserGuard(id);
+	update_user(db, None, (&user).into(), data).await
+}
+
 #[post("/me/passwd", data = "<data>")]
 async fn update_user_passwd(
 	mut db: Connection<Database>,
@@ -152,35 +163,28 @@ async fn update_user_passwd(
 	}
 }
 
-#[put("/<id>", data = "<data>")]
-async fn admin_update_user(
-	db: Connection<Database>,
-	_admin: RequiredAdminUser<'_>,
-	id: u64,
-	data: Form<UserConfig>,
-) -> SqlxResponseResult<Status> {
-	let user = UserGuard(id);
-	update_user(db, None, (&user).into(), data).await
-}
-
 #[delete("/<id>")]
 async fn delete_user(
 	mut db: Connection<Database>,
 	_admin: RequiredAdminUser<'_>,
 	id: u64,
 ) -> SqlxResponseResult<Status> {
-	let id = id as i64;
-	let affected = sqlx::query!("DELETE FROM users WHERE id = ?", id)
-		.execute(&mut *db)
-		.await
-		.map_err(sqlx_response_err)?
-		.rows_affected();
-
-	Ok(if affected > 0 {
-		Status::NoContent
+	if UserGuard(id).is_admin() {
+		Ok(Status::MethodNotAllowed)
 	} else {
-		Status::NotFound
-	})
+		let id = id as i64;
+		let affected = sqlx::query!("DELETE FROM users WHERE id = ?", id)
+			.execute(&mut *db)
+			.await
+			.map_err(sqlx_response_err)?
+			.rows_affected();
+
+		Ok(if affected > 0 {
+			Status::NoContent
+		} else {
+			Status::NotFound
+		})
+	}
 }
 
 #[inline]
@@ -191,8 +195,8 @@ pub(super) fn routes() -> Vec<Route> {
 		read_user,
 		admin_read_user,
 		update_user,
-		update_user_passwd,
 		admin_update_user,
+		update_user_passwd,
 		delete_user
 	]
 }

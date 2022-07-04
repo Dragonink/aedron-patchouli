@@ -21,7 +21,7 @@ pub(super) fn Libraries<G: Html>(cx: Scope) -> View<G> {
 	};
 	let managed_library_props = ManageLibraryProps {
 		dialog_ref,
-		library_sig: managed_library_sig,
+		managed_library_sig,
 	};
 	let props = SuspenseProps::builder()
 		.children(Children::new(cx, move |cx| {
@@ -229,10 +229,10 @@ fn CreateLibrary<'a, G: Html>(
 		.view(cx)
 }
 
-#[derive(Clone, Prop)]
+#[derive(Prop)]
 struct ManageLibraryProps<'a, G: Html> {
 	dialog_ref: &'a NodeRef<G>,
-	library_sig: &'a ReadSignal<Option<LibraryConfig>>,
+	managed_library_sig: &'a ReadSignal<Option<LibraryConfig>>,
 }
 #[component]
 fn ManageLibrary<'a, G: Html>(cx: Scope<'a>, props: ManageLibraryProps<'a, G>) -> View<G> {
@@ -269,13 +269,13 @@ fn ManageLibrary<'a, G: Html>(cx: Scope<'a>, props: ManageLibraryProps<'a, G>) -
 
 	let ManageLibraryProps {
 		dialog_ref,
-		library_sig,
+		managed_library_sig,
 	} = props;
 
 	dialog()
 		.bind_ref(dialog_ref.clone())
 		.on("close", move |_| {
-			let library = library_sig.get();
+			let library = managed_library_sig.get();
 			let library = if let Some(library) = library.deref() {
 				library
 			} else {
@@ -327,7 +327,7 @@ fn ManageLibrary<'a, G: Html>(cx: Scope<'a>, props: ManageLibraryProps<'a, G>) -
 		})
 		.c(form()
 			.attr("method", "dialog")
-			.dyn_c(move || LibraryFormFields(cx, library_sig.get().as_ref().clone()))
+			.dyn_c(move || LibraryFormFields(cx, managed_library_sig.get().as_ref().clone()))
 			.c(button()
 				.attr("type", "submit")
 				.bool_attr("formnovalidate", true)
