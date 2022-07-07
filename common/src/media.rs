@@ -1,9 +1,10 @@
 //! Structs and server implementations to work with media
 
+use const_format::concatcp;
 use serde::{Deserialize, Serialize};
 
 /// API endpoint for requests about media
-pub const API_ENDPOINT: &str = constcat!(super::API_BASE, "/media");
+pub const API_ENDPOINT: &str = concatcp!(super::API_BASE, "/media");
 
 /// Common functions for media types
 pub trait Media {

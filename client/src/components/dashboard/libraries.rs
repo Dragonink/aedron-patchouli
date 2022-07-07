@@ -1,4 +1,5 @@
 use aedron_patchouli_common::libraries::LibraryConfig;
+use const_format::formatcp;
 use std::{ops::Deref, str::FromStr};
 use sycamore::{component::Prop, prelude::*};
 use wasm_bindgen::JsCast;
@@ -83,7 +84,7 @@ async fn FetchedLibraries<'a, G: Html>(
 		libraries,
 	} = props;
 
-	let req = Request::new_with_str(&format!("{API_ENDPOINT}/?config=true")).unwrap();
+	let req = Request::new_with_str(formatcp!("{API_ENDPOINT}/?config=true")).unwrap();
 	libraries.set(crate::fetch_api(&req).await.unwrap().unwrap());
 	let props = IndexedProps::builder()
 		.iterable(libraries)

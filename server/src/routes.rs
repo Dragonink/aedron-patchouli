@@ -91,7 +91,7 @@ mod user_session {
 			Ok(true) => {
 				let expire = OffsetDateTime::now_utc() + UserCookie::EXPIRE;
 				jar.add_private(
-					Cookie::build(User::COOKIE_NAME, format!("{}", user.id))
+					Cookie::build(User::COOKIE_NAME, user.id.to_string())
 						.secure(true)
 						.expires(expire)
 						.finish(),

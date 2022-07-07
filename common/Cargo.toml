@@ -10,7 +10,7 @@ publish = false
 server_impls = ["dep:rocket", "dep:time"]
 
 [dependencies]
-constcat = "0"
+const_format = "0"
 derive-try-from-primitive = "1"
 enum-iterator = "1"
 [dependencies.rocket]

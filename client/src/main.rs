@@ -2,6 +2,7 @@
 #![deny(unused_must_use)]
 
 use aedron_patchouli_common::users::UserCookie;
+use const_format::formatcp;
 use serde::de::DeserializeOwned;
 use wasm_bindgen::{prelude::wasm_bindgen, JsCast, JsValue};
 use web_sys::Request;
@@ -18,7 +19,7 @@ fn extract_user_info(cookies: &str) -> Option<UserCookie> {
 		.split(';')
 		.find_map(|mut s| {
 			s = s.trim();
-			s.starts_with(&format!("{}=", UserCookie::COOKIE_NAME))
+			s.starts_with(formatcp!("{}=", UserCookie::COOKIE_NAME))
 				.then(move || s.split('=').last().unwrap().to_string())
 		})
 		.and_then(|uri_enc| {

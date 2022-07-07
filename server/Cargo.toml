@@ -8,6 +8,7 @@ publish = false
 
 [dependencies]
 aedron_patchouli-server-proc = { path = "proc" }
+const_format = "0"
 either = "1"
 futures = "0"
 once_cell = "1"

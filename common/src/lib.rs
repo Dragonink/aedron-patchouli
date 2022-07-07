@@ -3,9 +3,6 @@
 #![deny(unused_must_use)]
 #![warn(missing_docs)]
 
-#[macro_use]
-extern crate constcat;
-
 /// Base endpoint for API requests
 pub const API_BASE: &str = "/api";
 

@@ -1,6 +1,7 @@
 //! Structs and server implementations to work with libraries
 
 use crate::media::Media;
+use const_format::concatcp;
 use derive_try_from_primitive::TryFromPrimitive;
 use enum_iterator::Sequence;
 #[cfg(feature = "server_impls")]
@@ -9,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
 /// API endpoint for requests about libraries
-pub const API_ENDPOINT: &str = constcat!(super::API_BASE, "/libraries");
+pub const API_ENDPOINT: &str = concatcp!(super::API_BASE, "/libraries");
 
 /// Type of media the library contains
 #[non_exhaustive]

@@ -4,6 +4,7 @@
 #[macro_use]
 extern crate rocket;
 use aedron_patchouli_server_proc::*;
+use const_format::formatcp;
 use figment::{
 	value::{Dict, Map},
 	Metadata, Profile, Provider, Source,
@@ -155,7 +156,7 @@ impl Fairing for DatabaseManager {
 		let mut db = try_result!(rocket.state::<Database>().unwrap().get().await);
 		macro_rules! get_version {
 			() => {
-				sqlx::query_scalar(&format!("PRAGMA {}", Database::DB_VERSION_PRAGMA))
+				sqlx::query_scalar(formatcp!("PRAGMA {}", Database::DB_VERSION_PRAGMA))
 					.persistent(false)
 					.fetch_one(&mut db)
 					.await
@@ -164,7 +165,7 @@ impl Fairing for DatabaseManager {
 		}
 
 		// Check if APPLICATION_ID pragma is ours
-		let app_id = try_result!(sqlx::query_scalar(&format!(
+		let app_id = try_result!(sqlx::query_scalar(formatcp!(
 			"PRAGMA {}",
 			Database::APPLICATION_ID_PRAGMA
 		))
@@ -189,7 +190,7 @@ impl Fairing for DatabaseManager {
 
 		console_info!("Initializing", "database");
 		try_result!(
-			sqlx::query(&format!(
+			sqlx::query(formatcp!(
 				"PRAGMA {key} = {val}",
 				key = Database::APPLICATION_ID_PRAGMA,
 				val = Database::APPLICATION_ID
@@ -325,7 +326,7 @@ async fn rocket() -> _ {
 					figment = figment.merge(user_config);
 				}
 				Err(err) => {
-					console_error!(&format!("Could not read `{USER_CONFIG_PATH}`"), "{err}");
+					console_error!(formatcp!("Could not read `{USER_CONFIG_PATH}`"), "{err}");
 					process::exit(1);
 				}
 			}

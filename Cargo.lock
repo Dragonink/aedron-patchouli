@@ -17,6 +17,7 @@ version = "0.2.0"
 dependencies = [
  "aedron_patchouli-common",
  "console_error_panic_hook",
+ "const_format",
  "enum-iterator",
  "js-sys",
  "rmp-serde",
@@ -34,7 +35,7 @@ dependencies = [
 name = "aedron_patchouli-common"
 version = "0.2.0"
 dependencies = [
- "constcat",
+ "const_format",
  "derive-try-from-primitive",
  "enum-iterator",
  "rocket",
@@ -48,6 +49,7 @@ version = "0.2.0"
 dependencies = [
  "aedron_patchouli-common",
  "aedron_patchouli-server-proc",
+ "const_format",
  "either",
  "figment",
  "futures",
@@ -291,16 +293,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "const_format"
+version = "0.2.26"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "939dc9e2eb9077e0679d2ce32de1ded8531779360b003b4a972a7a39ec263495"
+dependencies = [
+ "const_format_proc_macros",
+]
+
+[[package]]
+name = "const_format_proc_macros"
+version = "0.2.22"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ef196d5d972878a48da7decb7686eded338b4858fbabeed513d63a7c98b2b82d"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "unicode-xid",
+]
+
+[[package]]
 name = "constant_time_eq"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "245097e9a4535ee1e3e3931fcfcd55a796a44c643e8596ff6566d68f09b87bbc"
-
-[[package]]
-name = "constcat"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9baddb4e21c94fde36ec67767093811524c8f8e2fa0c80e86685811d31407e9a"
 
 [[package]]
 name = "cookie"

@@ -1,5 +1,6 @@
 //! Structs and server implementations to work with users
 
+use const_format::concatcp;
 #[cfg(feature = "server_impls")]
 use rocket::form::FromForm;
 use serde::{Deserialize, Serialize};
@@ -7,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use time::Duration;
 
 /// API endpoint for requests about users
-pub const API_ENDPOINT: &str = constcat!(super::API_BASE, "/users");
+pub const API_ENDPOINT: &str = concatcp!(super::API_BASE, "/users");
 
 /// User credentials
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]

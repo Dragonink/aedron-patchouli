@@ -1,4 +1,5 @@
 use aedron_patchouli_common::users::UserCookie;
+use const_format::formatcp;
 use sycamore::prelude::*;
 use wasm_bindgen::JsCast;
 
@@ -21,7 +22,7 @@ fn EditForm<'a, G: Html>(cx: Scope<'a>, user: &'a UserCookie) -> View<G> {
 
 	form()
 		.attr("method", "put")
-		.attr("action", format!("{API_ENDPOINT}/me"))
+		.attr("action", formatcp!("{API_ENDPOINT}/me"))
 		.on("submit", move |ev: Event| {
 			let req = super::form_build_req(&ev);
 			sycamore::futures::spawn_local_scoped(cx, async move {
@@ -59,7 +60,7 @@ fn ChangePasswd<G: Html>(cx: Scope) -> View<G> {
 
 	form()
 		.attr("method", "post")
-		.attr("action", format!("{API_ENDPOINT}/me/passwd"))
+		.attr("action", formatcp!("{API_ENDPOINT}/me/passwd"))
 		.on("submit", move |ev: Event| {
 			let req = super::form_build_req(&ev);
 			sycamore::futures::spawn_local_scoped(cx, async move {
