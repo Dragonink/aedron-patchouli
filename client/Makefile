@@ -1,4 +1,4 @@
-include ../util.mk
+include ../utils.mk
 
 OUTPUT_PREFIX ?= index
 
@@ -19,9 +19,9 @@ RUST_CRATE_NAME := $(call get_cargo_pkg_name)
 RUST_TARGET := wasm32-unknown-unknown
 
 OUT_RUST_wasm := ../target/$(RUST_TARGET)/$(if $(RELEASE),release-wasm,debug)/$(RUST_CRATE_NAME).wasm
+$(OUT_RUST_wasm) : .EXTRA_PREREQS := $(.EXTRA_PREREQS) Cargo.* ../Cargo.* .cargo/config.toml
 $(OUT_RUST_wasm) : $(call rwildcard,src/,*.rs)
 	$(cargo) build --target $(RUST_TARGET) $(if $(RELEASE),--profile release-wasm)
-$(OUT_RUST_wasm) : .EXTRA_PREREQS := $(.EXTRA_PREREQS) Cargo.* ../Cargo.* .cargo/config.toml
 #!SECTION
 
 #SECTION WASM-bindgen
