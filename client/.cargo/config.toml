@@ -1,3 +1,6 @@
+[build]
+target = "wasm32-unknown-unknown"
+
 [target.wasm32-unknown-unknown]
 rustflags = [
 	"-Ctarget-feature=+reference-types,+atomics,+nontrapping-fptoint,+bulk-memory,+exception-handling,+sign-ext"

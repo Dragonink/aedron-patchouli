@@ -16,12 +16,12 @@ out :
 
 #SECTION Rust
 RUST_CRATE_NAME := $(call get_cargo_pkg_name)
-RUST_TARGET := wasm32-unknown-unknown
+RUST_TARGET := $(shell awk -F= '$$1~/^[[:space:]]*target[[:space:]]*$$/{gsub(/^[[:space:]]*"|"[[:space:]]*$$/, "", $$2);print $$2}' .cargo/config.toml)
 
 OUT_RUST_wasm := ../target/$(RUST_TARGET)/$(if $(RELEASE),release-wasm,debug)/$(RUST_CRATE_NAME).wasm
 $(OUT_RUST_wasm) : .EXTRA_PREREQS := $(.EXTRA_PREREQS) Cargo.* ../Cargo.* .cargo/config.toml
 $(OUT_RUST_wasm) : $(call rwildcard,src/,*.rs)
-	$(cargo) build --target $(RUST_TARGET) $(if $(RELEASE),--profile release-wasm)
+	$(cargo) build $(if $(RELEASE),--profile release-wasm)
 #!SECTION
 
 #SECTION WASM-bindgen
