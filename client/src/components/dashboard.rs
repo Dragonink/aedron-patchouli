@@ -32,20 +32,22 @@ pub(super) fn Dashboard<G: Html>(cx: Scope, route: &DashboardRoute) -> View<G> {
 
 	fragment([
 		header()
-			.c(nav().c(ul().c(View::new_fragment(
-				enum_iterator::all::<DashboardRoute>()
-					.filter(|route| {
-						route.ne(&DashboardRoute::NotFound)
-							&& (route.eq(&DashboardRoute::Profile) || user.is_admin)
-					})
-					.map(|route| {
-						let txt = create_ref(cx, format!("{route:?}"));
+			.c(nav()
+				.c(a().attr("href", "/").t("Close dashboard"))
+				.c(ul().c(View::new_fragment(
+					enum_iterator::all::<DashboardRoute>()
+						.filter(|route| {
+							route.ne(&DashboardRoute::NotFound)
+								&& (route.eq(&DashboardRoute::Profile) || user.is_admin)
+						})
+						.map(|route| {
+							let txt = create_ref(cx, format!("{route:?}"));
 
-						li().c(a().attr("href", Route::Dashboard(route).to_string()).t(txt))
-							.view(cx)
-					})
-					.collect(),
-			))))
+							li().c(a().attr("href", Route::Dashboard(route).to_string()).t(txt))
+								.view(cx)
+						})
+						.collect(),
+				))))
 			.c(form()
 				.attr("method", "post")
 				.attr("action", "/logout")
