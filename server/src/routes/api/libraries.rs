@@ -103,7 +103,7 @@ async fn create_library(
 	raw_config: Form<RawLibraryConfig>,
 ) -> SqlxResponseResult<Created<MsgPack<LibraryConfig>>> {
 	let db_config: DbRawLibraryConfig = raw_config.clone().into();
-	let config = sqlx::query_as!(
+	let config: LibraryConfig = sqlx::query_as!(
 		DbLibraryConfig,
 		"INSERT INTO libraries (name, kind, paths) VALUES (?, ?, ?) RETURNING *",
 		db_config.name,
@@ -112,11 +112,12 @@ async fn create_library(
 	)
 	.fetch_one(&mut *db)
 	.await
-	.map_err(sqlx_response_err)?;
+	.map_err(sqlx_response_err)?
+	.try_into()
+	.map_err(library_kind_response_err)?;
 
-	spawn_index_library_task(db_pool, db, config.id);
+	spawn_index_library_task(db_pool, db, config.id as i64);
 
-	let config: LibraryConfig = config.try_into().map_err(library_kind_response_err)?;
 	Ok(Created::new(uri!(delete_library(config.id)).to_string()).body(MsgPack(config)))
 }
 

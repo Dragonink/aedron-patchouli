@@ -6,8 +6,11 @@ use serde::{Deserialize, Serialize};
 /// API endpoint for requests about media
 pub const API_ENDPOINT: &str = concatcp!(super::API_BASE, "/media");
 
-/// Common functions for media types
+/// Common data for media types
 pub trait Media {
+	/// Get the media's ID in database
+	fn id(&self) -> u64;
+
 	/// Get the media's title
 	fn title(&self) -> &str;
 }
@@ -21,7 +24,12 @@ pub struct MediaImage {
 	pub title: String,
 }
 impl Media for MediaImage {
-	#[inline]
+	#[inline(always)]
+	fn id(&self) -> u64 {
+		self.id
+	}
+
+	#[inline(always)]
 	fn title(&self) -> &str {
 		&self.title
 	}
@@ -42,7 +50,12 @@ pub struct MediaMusic {
 	pub track: Option<u16>,
 }
 impl Media for MediaMusic {
-	#[inline]
+	#[inline(always)]
+	fn id(&self) -> u64 {
+		self.id
+	}
+
+	#[inline(always)]
 	fn title(&self) -> &str {
 		&self.title
 	}
