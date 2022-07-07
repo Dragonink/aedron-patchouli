@@ -1,19 +1,5 @@
-use std::ops::Deref;
 use sycamore::prelude::*;
 use wasm_bindgen::JsCast;
-use web_sys::{Event, Request};
-
-fn form_build_req(ev: &Event) -> Request {
-	use web_sys::{FormData, HtmlFormElement, RequestInit};
-
-	ev.prevent_default();
-	let form: HtmlFormElement = ev.target().unwrap().unchecked_into();
-	let form_data = FormData::new_with_form(&form).unwrap();
-	let mut req = RequestInit::new();
-	req.method(&form.get_attribute("method").unwrap())
-		.body(Some(form_data.deref()));
-	Request::new_with_str_and_init(&form.action(), &req).unwrap()
-}
 
 mod dashboard;
 mod libraries;

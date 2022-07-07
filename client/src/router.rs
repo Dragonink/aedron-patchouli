@@ -37,6 +37,8 @@ impl Display for Route {
 pub(crate) enum DashboardRoute {
 	#[to("/")]
 	Profile,
+	#[to("/libraries")]
+	Libraries,
 	#[to("/users")]
 	Users,
 	#[not_found]
@@ -49,6 +51,7 @@ impl Display for DashboardRoute {
 			"/{}",
 			match self {
 				Self::Profile => "",
+				Self::Libraries => "libraries",
 				Self::Users => "users",
 				Self::NotFound => "404",
 			}

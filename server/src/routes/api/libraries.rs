@@ -71,6 +71,30 @@ async fn read_libraries(
 	))
 }
 
+#[get("/?<config>")]
+async fn read_libraries_config(
+	mut db: Connection<Database>,
+	admin: AdminUser<'_>,
+	config: bool,
+) -> SqlxResponseResult<Either<MsgPack<Vec<LibraryConfig>>, MsgPack<Vec<PartialLibrary>>>> {
+	if config {
+		sqlx::query_as!(DbLibraryConfig, "SELECT * FROM libraries")
+			.fetch_all(&mut *db)
+			.await
+			.map_err(sqlx_response_err)
+			.and_then(|data| {
+				data.into_iter()
+					.map(|db_config| db_config.try_into().map_err(library_kind_response_err))
+					.collect()
+			})
+			.map(|config| Either::Left(MsgPack(config)))
+	} else {
+		read_libraries(db, admin.deref().into())
+			.await
+			.map(Either::Right)
+	}
+}
+
 #[post("/", data = "<raw_config>")]
 async fn create_library(
 	db_pool: &State<Database>,
@@ -94,31 +118,6 @@ async fn create_library(
 
 	let config: LibraryConfig = config.try_into().map_err(library_kind_response_err)?;
 	Ok(Created::new(uri!(delete_library(config.id)).to_string()).body(MsgPack(config)))
-}
-
-#[get("/<id>?<config>&<full>")]
-async fn read_library_config(
-	mut db: Connection<Database>,
-	admin: AdminUser<'_>,
-	id: u64,
-	config: bool,
-	full: bool,
-) -> SqlxResponseResult<
-	Either<MsgPack<LibraryConfig>, Either<MsgPack<PartialLibrary>, ResponseLibrary>>,
-> {
-	if config {
-		let id = id as i64;
-		sqlx::query_as!(DbLibraryConfig, "SELECT * FROM libraries WHERE id = ?", id)
-			.fetch_one(&mut *db)
-			.await
-			.map_err(sqlx_response_err)
-			.and_then(|data| data.try_into().map_err(library_kind_response_err))
-			.map(|config| Either::Left(MsgPack(config)))
-	} else {
-		read_library(db, admin.deref().into(), id, full)
-			.await
-			.map(Either::Right)
-	}
 }
 
 #[get("/<id>?<full>", rank = 2)]
@@ -174,6 +173,31 @@ async fn read_library(
 		}
 	} else {
 		Ok(Either::Left(MsgPack(library)))
+	}
+}
+
+#[get("/<id>?<config>&<full>")]
+async fn read_library_config(
+	mut db: Connection<Database>,
+	admin: AdminUser<'_>,
+	id: u64,
+	config: bool,
+	full: bool,
+) -> SqlxResponseResult<
+	Either<MsgPack<LibraryConfig>, Either<MsgPack<PartialLibrary>, ResponseLibrary>>,
+> {
+	if config {
+		let id = id as i64;
+		sqlx::query_as!(DbLibraryConfig, "SELECT * FROM libraries WHERE id = ?", id)
+			.fetch_one(&mut *db)
+			.await
+			.map_err(sqlx_response_err)
+			.and_then(|data| data.try_into().map_err(library_kind_response_err))
+			.map(|config| Either::Left(MsgPack(config)))
+	} else {
+		read_library(db, admin.deref().into(), id, full)
+			.await
+			.map(Either::Right)
 	}
 }
 
@@ -237,9 +261,10 @@ async fn delete_library(
 pub(super) fn routes() -> Vec<Route> {
 	routes![
 		read_libraries,
+		read_libraries_config,
 		create_library,
-		read_library_config,
 		read_library,
+		read_library_config,
 		update_library,
 		delete_library
 	]
