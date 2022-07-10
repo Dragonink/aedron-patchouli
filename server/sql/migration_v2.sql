@@ -6,5 +6,17 @@ CREATE TABLE users (
 	passwd TEXT NOT NULL
 ) STRICT;
 
+CREATE TABLE permissions (
+	library INTEGER NOT NULL REFERENCES libraries (id) ON DELETE CASCADE,
+	user INTEGER REFERENCES users (id) ON DELETE CASCADE CHECK(user != 1),
+	action INTEGER CHECK(action = -1 OR action = 1),
+
+	CHECK(user IS NOT NULL OR action IS NOT NULL)
+) STRICT;
+CREATE UNIQUE INDEX permission_scope ON permissions (
+	library,
+	user
+);
+
 PRAGMA user_version = 2;
 COMMIT TRANSACTION;

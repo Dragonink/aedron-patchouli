@@ -376,6 +376,36 @@
     },
     "query": "INSERT OR IGNORE INTO media_music (library, path, title) VALUES (?, ?, ?)"
   },
+  "6edf14f429776ca25c4a32548c5524ee36eadd775c8a78387ca7ce13338472f0": {
+    "describe": {
+      "columns": [
+        {
+          "name": "library",
+          "ordinal": 0,
+          "type_info": "Int64"
+        },
+        {
+          "name": "user?",
+          "ordinal": 1,
+          "type_info": "Int64"
+        },
+        {
+          "name": "action?",
+          "ordinal": 2,
+          "type_info": "Int64"
+        }
+      ],
+      "nullable": [
+        false,
+        true,
+        false
+      ],
+      "parameters": {
+        "Right": 1
+      }
+    },
+    "query": "SELECT library, user as \"user?\", action as \"action?\" FROM permissions WHERE library = ?"
+  },
   "6f11c188b18cee5439bc3fc2b6be59c57e684a57803a4916bd78f3eba627fdb9": {
     "describe": {
       "columns": [
@@ -455,6 +485,16 @@
       }
     },
     "query": "UPDATE libraries SET name = ?, kind = ?, paths = ? WHERE id = ?"
+  },
+  "aad2c87bea20ef3a39e623d4d9216442f25cda9168275223adbc563e369dc51f": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 3
+      }
+    },
+    "query": "INSERT OR REPLACE INTO permissions (library, user, action) VALUES (?, ?, ?)"
   },
   "c100410ce4d585bf5bf5ce9cb11f1f72804cb1f259984ca2b1ab882376b5e7f2": {
     "describe": {

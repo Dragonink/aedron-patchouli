@@ -8,4 +8,5 @@ pub const API_BASE: &str = "/api";
 
 pub mod libraries;
 pub mod media;
+pub mod permissions;
 pub mod users;

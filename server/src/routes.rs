@@ -22,6 +22,10 @@ fn sqlx_response_err(err: sqlx::Error) -> SqlxResponseError {
 fn library_kind_response_err(_: u8) -> SqlxResponseError {
 	Either::Right("invalid value for LibraryKind".to_string())
 }
+#[inline]
+fn perm_action_response_err(_: i8) -> SqlxResponseError {
+	Either::Right("invalid value for PermAction".to_string())
+}
 
 #[inline]
 async fn fetch_library_kind(
