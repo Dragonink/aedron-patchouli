@@ -1,11 +1,12 @@
 use crate::{
-	guards::{AdminUser, RequiredAdminUser, RequiredUser},
+	guards::{AdminUser, RequiredAdminUser, RequiredUser, User},
 	routes::{library_kind_response_err, sqlx_response_err, SqlxResponseResult},
 	Database,
 };
 use aedron_patchouli_common::{
 	libraries::*,
 	media::{DbMediaImage, DbMediaMusic, MediaImage, MediaMusic},
+	permissions::PermAction,
 };
 use either::Either;
 use rocket::{
@@ -56,12 +57,29 @@ fn spawn_index_library_task(db_pool: &Database, mut db: Connection<Database>, id
 #[get("/")]
 async fn read_libraries(
 	mut db: Connection<Database>,
-	_user: RequiredUser<'_>,
+	user: RequiredUser<'_>,
 ) -> SqlxResponseResult<MsgPack<Vec<PartialLibrary>>> {
-	let data = sqlx::query_as!(DbPartialLibrary, "SELECT id, name, kind FROM libraries")
-		.fetch_all(&mut *db)
-		.await
-		.map_err(sqlx_response_err)?;
+	let user_id = user.id() as i64;
+	let data = sqlx::query_as!(
+		DbPartialLibrary,
+		"
+		SELECT DISTINCT libraries.id, libraries.name, libraries.kind FROM libraries
+		JOIN effect_permissions as perms ON perms.library = libraries.id
+		WHERE
+			? = ? OR
+			(perms.user = ? AND perms.action = ?) OR
+			(? NOT IN (SELECT DISTINCT user FROM effect_permissions WHERE library = libraries.id) AND perms.user IS NULL AND perms.action = ?)
+		",
+		user_id,
+		User::ADMIN_ID as i64,
+		user_id,
+		PermAction::Allow as i8,
+		user_id,
+		PermAction::Allow as i8
+	)
+	.fetch_all(&mut *db)
+	.await
+	.map_err(sqlx_response_err)?;
 
 	Ok(MsgPack(
 		data.into_iter()
@@ -116,7 +134,17 @@ async fn create_library(
 	.try_into()
 	.map_err(library_kind_response_err)?;
 
-	spawn_index_library_task(db_pool, db, config.id as i64);
+	let id = config.id as i64;
+	sqlx::query!(
+		"INSERT INTO permissions (library, action) VALUES (?, ?)",
+		id,
+		Some(PermAction::Allow as i8)
+	)
+	.execute(&mut *db)
+	.await
+	.map_err(sqlx_response_err)?;
+
+	spawn_index_library_task(db_pool, db, id);
 
 	Ok(Created::new(uri!(delete_library(config.id)).to_string()).body(MsgPack(config)))
 }
@@ -124,15 +152,30 @@ async fn create_library(
 #[get("/<id>?<full>", rank = 2)]
 async fn read_library(
 	mut db: Connection<Database>,
-	_user: RequiredUser<'_>,
+	user: RequiredUser<'_>,
 	id: u64,
 	full: bool,
 ) -> SqlxResponseResult<Either<MsgPack<PartialLibrary>, ResponseLibrary>> {
 	let id = id as i64;
+	let user_id = user.id() as i64;
 	let library: PartialLibrary = sqlx::query_as!(
 		DbPartialLibrary,
-		"SELECT id, name, kind FROM libraries WHERE id = ?",
-		id
+		"
+		SELECT libraries.id, libraries.name, libraries.kind FROM libraries
+		JOIN effect_permissions as perms ON perms.library = libraries.id
+		WHERE
+			libraries.id = ? AND
+			(? = ? OR
+			(perms.user = ? AND perms.action = ?) OR
+			(? NOT IN (SELECT DISTINCT user FROM effect_permissions WHERE library = libraries.id) AND perms.user IS NULL AND perms.action = ?))
+		",
+		id,
+		user_id,
+		User::ADMIN_ID as i64,
+		user_id,
+		PermAction::Allow as i8,
+		user_id,
+		PermAction::Allow as i8
 	)
 	.fetch_one(&mut *db)
 	.await

@@ -24,6 +24,16 @@
     },
     "query": "SELECT id, name FROM users"
   },
+  "06f37e53d1c65c41196d8a5a4dcc3d28b8e041c2b53a77e4653877d8f59f8475": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 2
+      }
+    },
+    "query": "INSERT INTO permissions (library, action) VALUES (?, ?)"
+  },
   "0962e86c0b4d7cc24573b2282e79b8a254b7a3c641fe3012550d0f226dafa366": {
     "describe": {
       "columns": [
@@ -125,36 +135,6 @@
       }
     },
     "query": "SELECT * FROM libraries"
-  },
-  "1b167ea36b28b79e5618b61a2d6c519347d9a934faab637b9005eec1fc18d9eb": {
-    "describe": {
-      "columns": [
-        {
-          "name": "id",
-          "ordinal": 0,
-          "type_info": "Int64"
-        },
-        {
-          "name": "name",
-          "ordinal": 1,
-          "type_info": "Text"
-        },
-        {
-          "name": "kind",
-          "ordinal": 2,
-          "type_info": "Int64"
-        }
-      ],
-      "nullable": [
-        false,
-        false,
-        false
-      ],
-      "parameters": {
-        "Right": 0
-      }
-    },
-    "query": "SELECT id, name, kind FROM libraries"
   },
   "2050aa19fc99bfad01a0f6e651e38338bb3fe7011a3f888bd4cc2c721e2a2c0f": {
     "describe": {
@@ -398,7 +378,7 @@
       "nullable": [
         false,
         true,
-        false
+        true
       ],
       "parameters": {
         "Right": 1
@@ -452,6 +432,36 @@
     },
     "query": "SELECT id FROM users WHERE id = ?"
   },
+  "7ae67d85d72e72d5ed096eb9782da8aafcc0ebcf0645f464feb2276daef83710": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int64"
+        },
+        {
+          "name": "name",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "kind",
+          "ordinal": 2,
+          "type_info": "Int64"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false
+      ],
+      "parameters": {
+        "Right": 6
+      }
+    },
+    "query": "\n\t\tSELECT DISTINCT libraries.id, libraries.name, libraries.kind FROM libraries\n\t\tJOIN effect_permissions as perms ON perms.library = libraries.id\n\t\tWHERE\n\t\t\t? = ? OR\n\t\t\t(perms.user = ? AND perms.action = ?) OR\n\t\t\t(? NOT IN (SELECT DISTINCT user FROM effect_permissions WHERE library = libraries.id) AND perms.user IS NULL AND perms.action = ?)\n\t\t"
+  },
   "91e594b6791ba6b68e67c8bf40bee1f4a672b8a19abea65bc311de637e69b2f2": {
     "describe": {
       "columns": [
@@ -496,25 +506,7 @@
     },
     "query": "INSERT OR REPLACE INTO permissions (library, user, action) VALUES (?, ?, ?)"
   },
-  "c100410ce4d585bf5bf5ce9cb11f1f72804cb1f259984ca2b1ab882376b5e7f2": {
-    "describe": {
-      "columns": [
-        {
-          "name": "passwd",
-          "ordinal": 0,
-          "type_info": "Text"
-        }
-      ],
-      "nullable": [
-        false
-      ],
-      "parameters": {
-        "Right": 1
-      }
-    },
-    "query": "SELECT passwd FROM users WHERE id = ?"
-  },
-  "cccd8ea7442eb255979086c76c15ef018e21833aa151007cf132179fd8bb45b6": {
+  "ac95aebec2a627f7fc7dc59ee5ac2ca2d85551b74db3dd11f9ea5ecb4a4b2551": {
     "describe": {
       "columns": [
         {
@@ -539,10 +531,28 @@
         false
       ],
       "parameters": {
+        "Right": 7
+      }
+    },
+    "query": "\n\t\tSELECT libraries.id, libraries.name, libraries.kind FROM libraries\n\t\tJOIN effect_permissions as perms ON perms.library = libraries.id\n\t\tWHERE\n\t\t\tlibraries.id = ? AND\n\t\t\t(? = ? OR\n\t\t\t(perms.user = ? AND perms.action = ?) OR\n\t\t\t(? NOT IN (SELECT DISTINCT user FROM effect_permissions WHERE library = libraries.id) AND perms.user IS NULL AND perms.action = ?))\n\t\t"
+  },
+  "c100410ce4d585bf5bf5ce9cb11f1f72804cb1f259984ca2b1ab882376b5e7f2": {
+    "describe": {
+      "columns": [
+        {
+          "name": "passwd",
+          "ordinal": 0,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false
+      ],
+      "parameters": {
         "Right": 1
       }
     },
-    "query": "SELECT id, name, kind FROM libraries WHERE id = ?"
+    "query": "SELECT passwd FROM users WHERE id = ?"
   },
   "d2c973760be9c7175bfea1261b2206fb0eac779a5d7cce11c89024e6bfc1e736": {
     "describe": {

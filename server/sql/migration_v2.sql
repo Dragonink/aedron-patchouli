@@ -17,6 +17,11 @@ CREATE UNIQUE INDEX permission_scope ON permissions (
 	library,
 	user
 );
+CREATE VIEW effect_permissions AS
+SELECT library, user, CASE action
+	WHEN NULL THEN (SELECT action FROM permissions as p WHERE p.library = permissions.library AND user IS NULL)
+	ELSE action
+END as action FROM permissions;
 
 PRAGMA user_version = 2;
 COMMIT TRANSACTION;

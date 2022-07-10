@@ -10,6 +10,7 @@ use std::ops::Deref;
 #[repr(transparent)]
 pub(crate) struct User(pub u64);
 impl User {
+	pub(crate) const ADMIN_ID: u64 = 1;
 	pub const COOKIE_NAME: &'static str = "user_id";
 
 	#[inline(always)]
@@ -19,7 +20,7 @@ impl User {
 
 	#[inline(always)]
 	pub const fn is_admin(&self) -> bool {
-		self.id() == 1
+		self.id() == Self::ADMIN_ID
 	}
 }
 #[async_trait]
