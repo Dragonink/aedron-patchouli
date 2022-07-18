@@ -49,6 +49,16 @@ async fn create_user(
 	.fetch_one(&mut *db)
 	.await
 	.map_err(sqlx_response_err)?;
+	sqlx::query!(
+		"
+		INSERT INTO permissions
+		SELECT id as library, ? as user, NULL as action FROM libraries
+		",
+		user.id
+	)
+	.execute(&mut *db)
+	.await
+	.map_err(sqlx_response_err)?;
 
 	let user = User::from(user);
 	Ok(Created::new(uri!(delete_user(user.id)).to_string()).body(MsgPack(user)))

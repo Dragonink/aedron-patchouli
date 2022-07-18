@@ -24,6 +24,16 @@
     },
     "query": "SELECT id, name FROM users"
   },
+  "02ecba6166ec943c0580de177ff6233eb2aabc0fd13d1b582ac9a4a55de98959": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 1
+      }
+    },
+    "query": "\n\t\tINSERT INTO permissions\n\t\tSELECT ? as library, id as user, NULL as action FROM users\n\t\tWHERE id != 1\n\t\t"
+  },
   "06f37e53d1c65c41196d8a5a4dcc3d28b8e041c2b53a77e4653877d8f59f8475": {
     "describe": {
       "columns": [],
@@ -300,6 +310,66 @@
     },
     "query": "SELECT id, name FROM users WHERE id = ?"
   },
+  "4aef30bbaa11ca96a177f5ea66117d1ae052687710765e78b3529a8a389c4d3c": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int64"
+        },
+        {
+          "name": "name",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "kind",
+          "ordinal": 2,
+          "type_info": "Int64"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false
+      ],
+      "parameters": {
+        "Right": 4
+      }
+    },
+    "query": "\n\t\tSELECT DISTINCT libraries.id, libraries.name, libraries.kind FROM libraries\n\t\tJOIN effect_permissions as perms ON perms.library = libraries.id\n\t\tWHERE\n\t\t\t? = ? OR\n\t\t\t(perms.user = ? AND perms.action = ?)\n\t\t"
+  },
+  "4d7f57fa7f9c86e08dbdf43e2b80a33d44389b119c853e874240c44f25c780a7": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int64"
+        },
+        {
+          "name": "name",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "kind",
+          "ordinal": 2,
+          "type_info": "Int64"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false
+      ],
+      "parameters": {
+        "Right": 5
+      }
+    },
+    "query": "\n\t\tSELECT libraries.id, libraries.name, libraries.kind FROM libraries\n\t\tJOIN effect_permissions as perms ON perms.library = libraries.id\n\t\tWHERE\n\t\t\tlibraries.id = ? AND\n\t\t\t(? = ? OR\n\t\t\t(perms.user = ? AND perms.action = ?))\n\t\t"
+  },
   "4ef9827939ca23ef69437ced1036ec754bc98abcf0d2c3fdfa84c4450d93c4b3": {
     "describe": {
       "columns": [
@@ -432,36 +502,6 @@
     },
     "query": "SELECT id FROM users WHERE id = ?"
   },
-  "7ae67d85d72e72d5ed096eb9782da8aafcc0ebcf0645f464feb2276daef83710": {
-    "describe": {
-      "columns": [
-        {
-          "name": "id",
-          "ordinal": 0,
-          "type_info": "Int64"
-        },
-        {
-          "name": "name",
-          "ordinal": 1,
-          "type_info": "Text"
-        },
-        {
-          "name": "kind",
-          "ordinal": 2,
-          "type_info": "Int64"
-        }
-      ],
-      "nullable": [
-        false,
-        false,
-        false
-      ],
-      "parameters": {
-        "Right": 6
-      }
-    },
-    "query": "\n\t\tSELECT DISTINCT libraries.id, libraries.name, libraries.kind FROM libraries\n\t\tJOIN effect_permissions as perms ON perms.library = libraries.id\n\t\tWHERE\n\t\t\t? = ? OR\n\t\t\t(perms.user = ? AND perms.action = ?) OR\n\t\t\t(? NOT IN (SELECT DISTINCT user FROM effect_permissions WHERE library = libraries.id) AND perms.user IS NULL AND perms.action = ?)\n\t\t"
-  },
   "91e594b6791ba6b68e67c8bf40bee1f4a672b8a19abea65bc311de637e69b2f2": {
     "describe": {
       "columns": [
@@ -486,6 +526,16 @@
     },
     "query": "UPDATE users SET name = ? WHERE id = ? RETURNING id, name"
   },
+  "9bd91852e66b0ab6975ebd877cf473bb0f4c17a5b24b134a305d85aba7057127": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 1
+      }
+    },
+    "query": "\n\t\tINSERT INTO permissions\n\t\tSELECT id as library, ? as user, NULL as action FROM libraries\n\t\t"
+  },
   "a02cc183097f266ec6ea05dbb6babb0ef3f18c97cf84f3c737c04220b048c5b9": {
     "describe": {
       "columns": [],
@@ -505,36 +555,6 @@
       }
     },
     "query": "INSERT OR REPLACE INTO permissions (library, user, action) VALUES (?, ?, ?)"
-  },
-  "ac95aebec2a627f7fc7dc59ee5ac2ca2d85551b74db3dd11f9ea5ecb4a4b2551": {
-    "describe": {
-      "columns": [
-        {
-          "name": "id",
-          "ordinal": 0,
-          "type_info": "Int64"
-        },
-        {
-          "name": "name",
-          "ordinal": 1,
-          "type_info": "Text"
-        },
-        {
-          "name": "kind",
-          "ordinal": 2,
-          "type_info": "Int64"
-        }
-      ],
-      "nullable": [
-        false,
-        false,
-        false
-      ],
-      "parameters": {
-        "Right": 7
-      }
-    },
-    "query": "\n\t\tSELECT libraries.id, libraries.name, libraries.kind FROM libraries\n\t\tJOIN effect_permissions as perms ON perms.library = libraries.id\n\t\tWHERE\n\t\t\tlibraries.id = ? AND\n\t\t\t(? = ? OR\n\t\t\t(perms.user = ? AND perms.action = ?) OR\n\t\t\t(? NOT IN (SELECT DISTINCT user FROM effect_permissions WHERE library = libraries.id) AND perms.user IS NULL AND perms.action = ?))\n\t\t"
   },
   "c100410ce4d585bf5bf5ce9cb11f1f72804cb1f259984ca2b1ab882376b5e7f2": {
     "describe": {

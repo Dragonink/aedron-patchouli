@@ -67,13 +67,10 @@ async fn read_libraries(
 		JOIN effect_permissions as perms ON perms.library = libraries.id
 		WHERE
 			? = ? OR
-			(perms.user = ? AND perms.action = ?) OR
-			(? NOT IN (SELECT DISTINCT user FROM effect_permissions WHERE library = libraries.id) AND perms.user IS NULL AND perms.action = ?)
+			(perms.user = ? AND perms.action = ?)
 		",
 		user_id,
 		User::ADMIN_ID as i64,
-		user_id,
-		PermAction::Allow as i8,
 		user_id,
 		PermAction::Allow as i8
 	)
@@ -143,6 +140,17 @@ async fn create_library(
 	.execute(&mut *db)
 	.await
 	.map_err(sqlx_response_err)?;
+	sqlx::query!(
+		"
+		INSERT INTO permissions
+		SELECT ? as library, id as user, NULL as action FROM users
+		WHERE id != 1
+		",
+		id
+	)
+	.execute(&mut *db)
+	.await
+	.map_err(sqlx_response_err)?;
 
 	spawn_index_library_task(db_pool, db, id);
 
@@ -166,14 +174,11 @@ async fn read_library(
 		WHERE
 			libraries.id = ? AND
 			(? = ? OR
-			(perms.user = ? AND perms.action = ?) OR
-			(? NOT IN (SELECT DISTINCT user FROM effect_permissions WHERE library = libraries.id) AND perms.user IS NULL AND perms.action = ?))
+			(perms.user = ? AND perms.action = ?))
 		",
 		id,
 		user_id,
 		User::ADMIN_ID as i64,
-		user_id,
-		PermAction::Allow as i8,
 		user_id,
 		PermAction::Allow as i8
 	)
