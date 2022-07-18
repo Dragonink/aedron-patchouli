@@ -10,10 +10,7 @@ use figment::{
 	Metadata, Profile, Provider, Source,
 };
 use futures::stream::StreamExt;
-use rocket::{
-	fairing::{self, Fairing, Info},
-	Build, Orbit, Rocket,
-};
+use rocket::{Build, Orbit, Rocket};
 use rocket_db_pools::{Database as IDatabase, Pool};
 use serde::{de::IntoDeserializer, Deserialize, Serialize};
 use sqlx::SqlitePool;
@@ -121,22 +118,8 @@ impl Database {
 	pub const APPLICATION_ID: u32 = u32::from_be_bytes(*b"aepa");
 
 	const MIGRATIONS: &'static [&'static str] = include_migrations!("sql");
-}
 
-struct DatabaseManager;
-#[async_trait]
-impl Fairing for DatabaseManager {
-	#[inline(always)]
-	fn info(&self) -> Info {
-		use rocket::fairing::Kind;
-
-		Info {
-			name: "Database Manager",
-			kind: Kind::Ignite | Kind::Shutdown | Kind::Singleton,
-		}
-	}
-
-	async fn on_ignite(&self, rocket: Rocket<Build>) -> fairing::Result {
+	async fn on_ignite(rocket: Rocket<Build>) -> rocket::fairing::Result {
 		use aedron_patchouli_common::libraries::DbLibraryConfig;
 		use either::Either;
 		use futures::stream::FuturesUnordered;
@@ -272,10 +255,11 @@ impl Fairing for DatabaseManager {
 			.collect::<()>()
 			.await;
 		console_log!("Initialized", "database");
+
 		Ok(rocket)
 	}
 
-	async fn on_shutdown(&self, rocket: &Rocket<Orbit>) {
+	async fn on_shutdown(rocket: &Rocket<Orbit>) {
 		macro_rules! try_result {
 			($res:expr) => {
 				match $res {
@@ -335,8 +319,14 @@ async fn rocket() -> _ {
 
 	routes::mount(
 		rocket::custom(figment)
+			.attach(AdHoc::on_shutdown("Database Vacuumer", |rocket| {
+				Box::pin(Database::on_shutdown(rocket))
+			}))
 			.attach(Database::init())
-			.attach(DatabaseManager)
+			.attach(AdHoc::try_on_ignite(
+				"Database Igniter",
+				Database::on_ignite,
+			))
 			.attach(AdHoc::on_liftoff("Liftoff Announcer", |rocket| {
 				Box::pin(async move {
 					let config = rocket.config();
