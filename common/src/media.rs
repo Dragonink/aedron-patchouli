@@ -24,12 +24,12 @@ pub struct MediaImage {
 	pub title: String,
 }
 impl Media for MediaImage {
-	#[inline(always)]
+	#[inline]
 	fn id(&self) -> u64 {
 		self.id
 	}
 
-	#[inline(always)]
+	#[inline]
 	fn title(&self) -> &str {
 		&self.title
 	}
@@ -50,12 +50,12 @@ pub struct MediaMusic {
 	pub track: Option<u16>,
 }
 impl Media for MediaMusic {
-	#[inline(always)]
+	#[inline]
 	fn id(&self) -> u64 {
 		self.id
 	}
 
-	#[inline(always)]
+	#[inline]
 	fn title(&self) -> &str {
 		&self.title
 	}
@@ -74,7 +74,7 @@ mod db_version {
 		pub title: String,
 	}
 	impl From<MediaImage> for DbMediaImage {
-		#[inline(always)]
+		#[inline]
 		fn from(media: MediaImage) -> Self {
 			Self {
 				id: media.id as i64,
@@ -83,7 +83,7 @@ mod db_version {
 		}
 	}
 	impl From<DbMediaImage> for MediaImage {
-		#[inline(always)]
+		#[inline]
 		fn from(db_media: DbMediaImage) -> Self {
 			Self {
 				id: db_media.id as u64,

@@ -13,12 +13,12 @@ impl User {
 	pub(crate) const ADMIN_ID: u64 = 1;
 	pub const COOKIE_NAME: &'static str = "user_id";
 
-	#[inline(always)]
+	#[inline]
 	pub const fn id(&self) -> u64 {
 		self.0
 	}
 
-	#[inline(always)]
+	#[inline]
 	pub const fn is_admin(&self) -> bool {
 		self.id() == Self::ADMIN_ID
 	}
@@ -55,7 +55,7 @@ pub(crate) struct AdminUser<'r>(&'r User);
 impl<'r> Deref for AdminUser<'r> {
 	type Target = User;
 
-	#[inline(always)]
+	#[inline]
 	fn deref(&self) -> &Self::Target {
 		self.0
 	}
@@ -82,7 +82,7 @@ pub(crate) struct RequiredUser<'r>(&'r User);
 impl<'r> Deref for RequiredUser<'r> {
 	type Target = User;
 
-	#[inline(always)]
+	#[inline]
 	fn deref(&self) -> &Self::Target {
 		self.0
 	}
@@ -103,7 +103,7 @@ impl<'r> FromRequest<'r> for RequiredUser<'r> {
 	}
 }
 impl<'r> From<&'r User> for RequiredUser<'r> {
-	#[inline(always)]
+	#[inline]
 	fn from(user: &'r User) -> Self {
 		Self(user)
 	}
@@ -115,7 +115,7 @@ pub(crate) struct RequiredAdminUser<'r>(RequiredUser<'r>);
 impl<'r> Deref for RequiredAdminUser<'r> {
 	type Target = RequiredUser<'r>;
 
-	#[inline(always)]
+	#[inline]
 	fn deref(&self) -> &Self::Target {
 		&self.0
 	}
@@ -136,7 +136,7 @@ impl<'r> FromRequest<'r> for RequiredAdminUser<'r> {
 	}
 }
 impl<'r> From<RequiredAdminUser<'r>> for RequiredUser<'r> {
-	#[inline(always)]
+	#[inline]
 	fn from(admin: RequiredAdminUser<'r>) -> Self {
 		admin.0
 	}

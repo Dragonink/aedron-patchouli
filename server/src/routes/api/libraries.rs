@@ -25,7 +25,7 @@ macro_rules! responder_from_library {
 	($($media:ty => $variant:ident),*) => {
 		$(
 			impl From<Library<$media>> for ResponseLibrary {
-				#[inline(always)]
+				#[inline]
 				fn from(lib: Library<$media>) -> Self {
 					Self::$variant(MsgPack(lib))
 				}

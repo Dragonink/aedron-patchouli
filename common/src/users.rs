@@ -83,7 +83,7 @@ mod db_version {
 		pub name: String,
 	}
 	impl From<User> for DbUser {
-		#[inline(always)]
+		#[inline]
 		fn from(user: User) -> Self {
 			Self {
 				id: user.id as i64,
@@ -92,7 +92,7 @@ mod db_version {
 		}
 	}
 	impl From<DbUser> for User {
-		#[inline(always)]
+		#[inline]
 		fn from(db_user: DbUser) -> Self {
 			Self {
 				id: db_user.id as u64,

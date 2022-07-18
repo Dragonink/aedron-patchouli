@@ -26,7 +26,7 @@ pub enum LibraryKind {
 }
 impl LibraryKind {
 	/// Get the file extensions supported by the library type
-	#[inline(always)]
+	#[inline]
 	pub const fn extensions(&self) -> &'static [&'static str] {
 		match self {
 			Self::Image => &["jpg", "jpeg", "png"],
@@ -49,7 +49,7 @@ pub struct RawLibraryConfig {
 	pub paths: Vec<String>,
 }
 impl From<LibraryConfig> for RawLibraryConfig {
-	#[inline(always)]
+	#[inline]
 	fn from(config: LibraryConfig) -> Self {
 		Self {
 			name: config.name,
@@ -83,7 +83,7 @@ pub struct PartialLibrary {
 	pub kind: LibraryKind,
 }
 impl From<LibraryConfig> for PartialLibrary {
-	#[inline(always)]
+	#[inline]
 	fn from(config: LibraryConfig) -> Self {
 		Self {
 			id: config.id,
@@ -114,7 +114,7 @@ where
 	M: Debug + Clone + Serialize,
 {
 	/// Construct a new instance from a [`PartialLibrary`] and a vector of media
-	#[inline(always)]
+	#[inline]
 	pub fn new(lib: PartialLibrary, media: Vec<M>) -> Self {
 		Self {
 			id: lib.id,
@@ -185,7 +185,7 @@ mod db_version {
 		}
 	}
 	impl From<DbLibraryConfig> for DbRawLibraryConfig {
-		#[inline(always)]
+		#[inline]
 		fn from(db_config: DbLibraryConfig) -> Self {
 			Self {
 				name: db_config.name,
@@ -242,7 +242,7 @@ mod db_version {
 		pub kind: i64,
 	}
 	impl From<PartialLibrary> for DbPartialLibrary {
-		#[inline(always)]
+		#[inline]
 		fn from(lib: PartialLibrary) -> Self {
 			Self {
 				id: lib.id as i64,
@@ -264,7 +264,7 @@ mod db_version {
 		}
 	}
 	impl From<DbLibraryConfig> for DbPartialLibrary {
-		#[inline(always)]
+		#[inline]
 		fn from(db_config: DbLibraryConfig) -> Self {
 			Self {
 				id: db_config.id,

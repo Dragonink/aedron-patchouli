@@ -95,7 +95,7 @@ async fn js() -> io::Result<NamedFile> {
 }
 #[cfg(not(debug_assertions))]
 #[get("/assets/index.js")]
-#[inline(always)]
+#[inline]
 const fn js() -> RawJavaScript<&'static str> {
 	const CONTENT: &str = include_str!("../../../client/out/index.js");
 
@@ -110,7 +110,7 @@ async fn wasm() -> io::Result<NamedFile> {
 }
 #[cfg(not(debug_assertions))]
 #[get("/assets/index_bg.wasm")]
-#[inline(always)]
+#[inline]
 const fn wasm() -> (ContentType, &'static [u8]) {
 	const CONTENT: &[u8] = include_bytes!("../../../client/out/index_bg.wasm");
 

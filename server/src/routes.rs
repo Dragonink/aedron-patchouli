@@ -58,7 +58,7 @@ mod user_session {
 		passwd: String,
 	}
 	impl From<SecUser> for UserCookie {
-		#[inline(always)]
+		#[inline]
 		fn from(user: SecUser) -> Self {
 			Self {
 				is_admin: User(user.id as u64).is_admin(),

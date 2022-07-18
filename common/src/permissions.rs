@@ -29,7 +29,7 @@ impl PermAction {
 	///
 	/// If `self` is [`Self::Inherit`], this function returns [`None`].
 	/// Otherwise, it returns `Some(self)`.
-	#[inline(always)]
+	#[inline]
 	pub const fn some(self) -> Option<Self> {
 		match self {
 			Self::Inherit => None,

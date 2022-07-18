@@ -19,7 +19,7 @@ macro_rules! responder_from_media {
 	($($media:ty => $variant:ident),*) => {
 		$(
 			impl From<$media> for ResponseMedia {
-				#[inline(always)]
+				#[inline]
 				fn from(media: $media) -> Self {
 					Self::$variant(MsgPack(media))
 				}

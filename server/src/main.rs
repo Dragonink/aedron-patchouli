@@ -39,14 +39,14 @@ struct Config {
 	source: Option<Source>,
 }
 impl Config {
-	#[inline(always)]
+	#[inline]
 	pub const fn default_address() -> IpAddr {
 		use std::net::Ipv4Addr;
 
 		IpAddr::V4(Ipv4Addr::UNSPECIFIED)
 	}
 
-	#[inline(always)]
+	#[inline]
 	pub const fn default_port() -> u16 {
 		2372 // "AEPA" on a phone keyboard
 	}
@@ -79,7 +79,6 @@ impl Default for Config {
 	}
 }
 impl Provider for Config {
-	#[inline]
 	fn metadata(&self) -> Metadata {
 		let mut meta = Metadata::named("Aedron Patchouli Config");
 		meta.source = self.source.clone();
