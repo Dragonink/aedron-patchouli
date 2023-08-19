@@ -1,0 +1,23 @@
+[package]
+name = "aedron_patchouli-server"
+version.workspace = true
+authors.workspace = true
+repository.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+colored = "^2.0.4"
+log.workspace = true
+[dependencies.time]
+version = "^0.3.26"
+default-features = false
+features = ["formatting"]
+[target.'cfg(unix)'.dependencies]
+syslog = "^6.1.0"
+[target.'cfg(unix)'.dependencies.fern]
+version = "^0.6.2"
+features = ["colored", "syslog-6"]
+[target.'cfg(not(unix))'.dependencies.fern]
+version = "^0.6.2"
+features = ["colored"]

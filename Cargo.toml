@@ -1,0 +1,14 @@
+[workspace]
+members = [
+	"server"
+]
+
+[workspace.package]
+version = "0.1.0"
+authors = ["Dragonink (https://github.com/Dragonink)"]
+repository = "https://github.com/Dragonink/aedron-patchouli"
+edition = "2021"
+publish = false
+
+[workspace.dependencies]
+log = "^0.4.20"
