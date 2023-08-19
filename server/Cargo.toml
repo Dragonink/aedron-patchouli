@@ -9,10 +9,27 @@ publish.workspace = true
 [dependencies]
 colored = "^2.0.4"
 log.workspace = true
+[dependencies.axum]
+version = "^0.6.20"
+default-features = false
+features = ["tokio", "http1", "http2", "tower-log"]
 [dependencies.time]
 version = "^0.3.26"
 default-features = false
 features = ["formatting"]
+[dependencies.tokio]
+version = "^1.32.0"
+features = ["rt-multi-thread", "macros", "signal"]
+[dependencies.tower]
+version = "^0.4.13"
+default-features = false
+[dependencies.tower-http]
+version = "^0.4.3"
+default-features = false
+features = ["trace"]
+[dependencies.tracing]
+version = "^0.1.37"
+default-features = false
 [target.'cfg(unix)'.dependencies]
 syslog = "^6.1.0"
 [target.'cfg(unix)'.dependencies.fern]

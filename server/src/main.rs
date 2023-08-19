@@ -63,29 +63,34 @@
 )]
 #![forbid(unsafe_code, clippy::undocumented_unsafe_blocks)]
 
-use std::error::Error;
-use time::format_description::well_known::{
-	iso8601::{Config, EncodedConfig, TimePrecision},
-	Iso8601,
-};
+use std::{error::Error, net::SocketAddr};
+
+mod http;
 
 /// Sets up the application's logger
 ///
 /// The logger should output logs like:
 /// ```log
-/// 2023-08-19T14:01:10Z INFO [aedron_patchouli_server] Hello, world!
+/// 2023-08-19T14:01:10Z INFO [aedron-patchouli] Hello, world!
 /// ```
 ///
-/// If the compilation target is `unix`, the logs will be output to the syslog as well.
+/// On `unix` targets, the logs will be output to the syslog as well.
 ///
-/// Also the [panic hook](std::panic::set_hook) is set to output panic info through the logger.
+/// Also, the [panic hook](std::panic::set_hook) is set to output panic info through the logger.
 fn setup_logger() -> Result<(), fern::InitError> {
 	use colored::Colorize;
 	use fern::{
 		colors::{Color, ColoredLevelConfig},
 		Dispatch, InitError,
 	};
-	use time::OffsetDateTime;
+	use log::LevelFilter;
+	use time::{
+		format_description::well_known::{
+			iso8601::{Config, EncodedConfig, TimePrecision},
+			Iso8601,
+		},
+		OffsetDateTime,
+	};
 
 	/// Name of the application to be used in logs
 	const APP_NAME: &str = "aedron-patchouli";
@@ -103,33 +108,42 @@ fn setup_logger() -> Result<(), fern::InitError> {
 		.debug(Color::Green)
 		.info(Color::Cyan);
 
-	let mut logger = Dispatch::new().chain(
-		Dispatch::new()
-			.format(move |out, message, record| {
-				let Ok(timestamp) = OffsetDateTime::now_utc().format(&Iso8601::<TIME_FORMAT>) else { unreachable!() };
-				let mut target = record.target();
+	let mut logger = Dispatch::new()
+		.level(LevelFilter::Trace)
+		.level_for("tracing::span", LevelFilter::Off)
+		.level_for("hyper", LevelFilter::Info)
+		.level_for("tower_http::trace", LevelFilter::Off)
+		.chain(
+			Dispatch::new()
+				.format(move |out, message, record| {
+					let Ok(timestamp) = OffsetDateTime::now_utc().format(&Iso8601::<TIME_FORMAT>) else { unreachable!() };
+					let target = record.target();
 
-				let message = message.to_string();
-				let message = if target == PANIC_TARGET {
-					message.bold().red()
-				} else {
-					message.normal()
-				};
+					let message = message.to_string();
+					let message = if target == PANIC_TARGET {
+						message.bold().red()
+					} else {
+						message.normal()
+					};
 
-				if target == env!("CARGO_CRATE_NAME") || target == PANIC_TARGET {
-					target = APP_NAME;
-				}
-				let target = target.dimmed();
+					let target = target.strip_prefix(env!("CARGO_CRATE_NAME"))
+						.map(|target| APP_NAME.to_owned() + target)
+						.unwrap_or_else(|| if target == PANIC_TARGET {
+							APP_NAME
+						} else {
+							target
+						}.to_owned())
+						.dimmed();
 
-				out.finish(format_args!(
-					"{timestamp} {level:5} {pre_target}{target}{post_target} {message}",
-					level = colors.color(record.level()),
-					pre_target = "[".dimmed(),
-					post_target = "]".dimmed(),
-				));
-			})
-			.chain(std::io::stdout()),
-	);
+					out.finish(format_args!(
+						"{timestamp} {level:5} {pre_target}{target}{post_target} {message}",
+						level = colors.color(record.level()),
+						pre_target = "[".dimmed(),
+						post_target = "]".dimmed(),
+					));
+				})
+				.chain(std::io::stdout()),
+		);
 	#[cfg(unix)]
 	{
 		// If `unix`, output to syslog as well
@@ -171,11 +185,49 @@ fn setup_logger() -> Result<(), fern::InitError> {
 	Ok(())
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
+	use axum::Server;
+	use std::net::Ipv4Addr;
+
 	setup_logger()?;
 
-	log::info!("Hello, world!");
-	panic!("why not?");
+	let addr = SocketAddr::new(Ipv4Addr::UNSPECIFIED.into(), 2372);
+	log::info!("Starting the server on {addr}");
+	Server::bind(&addr)
+		.serve(http::new_router().into_make_service_with_connect_info::<SocketAddr>())
+		.with_graceful_shutdown(graceful_shutdown())
+		.await?;
 
 	Ok(())
+}
+
+/// Returns a [`Future`](std::future::Future) that resolves when the ⌃C signal is caught
+///
+/// Additionally, on `unix` targets, the SIGTERM signal is also awaited.
+async fn graceful_shutdown() {
+	use tokio::signal;
+	#[cfg(unix)]
+	use tokio::signal::unix::SignalKind;
+
+	let ctrl_c = async {
+		signal::ctrl_c()
+			.await
+			.expect("the ⌃C signal listener could not be installed");
+	};
+
+	#[cfg(unix)]
+	let sig_term = async {
+		signal::unix::signal(SignalKind::terminate())
+			.expect("the SIGTERM signal listener could not be installed")
+			.recv()
+			.await;
+	};
+	#[cfg(not(unix))]
+	let sig_term = std::future::pending();
+
+	tokio::select! {
+		_ = ctrl_c => {}
+		_ = sig_term => {}
+	}
 }
