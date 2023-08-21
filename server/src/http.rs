@@ -14,19 +14,31 @@ use std::{
 use tower::ServiceBuilder;
 use tower_http::{
 	classify::{ServerErrorsAsFailures, SharedClassifier},
+	compression::CompressionLayer,
+	normalize_path::NormalizePathLayer,
 	trace::{DefaultMakeSpan, OnFailure, OnRequest, OnResponse, TraceLayer},
 };
 use tracing::Span;
 
+mod assets;
+
 /// Constructs a new configured [`Router`]
 #[inline]
-pub(crate) fn new_router() -> Router {
-	Router::new()
-		.route("/", axum::routing::get(|| async { "Hello, world!" }))
+pub(crate) fn new_router<S>() -> Router<S>
+where
+	S: Clone + Send + Sync + 'static,
+{
+	Router::<S>::new()
+		.nest("/assets", assets::new_nested_router())
+		.merge(assets::new_merged_router())
 		.layer(
+			// NOTE: Requests pass through layers top down (↓)
 			ServiceBuilder::new()
+				.layer(NormalizePathLayer::trim_trailing_slash())
 				.layer(CustomTrace::new_layer())
+				.layer(CompressionLayer::new())
 				.layer(middleware::from_fn(req_to_res_extensions)),
+			// NOTE: Responses pass through layers bottom up (↑)
 		)
 }
 

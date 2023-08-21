@@ -1,5 +1,8 @@
 //! Server application of *Aedron Patchouli*
 #![warn(
+	// Restriction (use `log` instead)
+	clippy::print_stdout,
+	clippy::print_stderr,
 	// Restriction
 	missing_copy_implementations,
 	missing_debug_implementations,

@@ -1,32 +1,39 @@
 [package]
 name = "aedron_patchouli-server"
-version.workspace = true
-authors.workspace = true
-repository.workspace = true
-edition.workspace = true
-publish.workspace = true
+version = { workspace = true }
+authors = { workspace = true }
+repository = { workspace = true }
+edition = { workspace = true }
+publish = { workspace = true }
+
+[[bin]]
+name = "aedron-patchouli"
+path = "src/main.rs"
 
 [dependencies]
 colored = "^2.0.4"
-log.workspace = true
+log = { workspace = true }
 [dependencies.axum]
 version = "^0.6.20"
 default-features = false
-features = ["tokio", "http1", "http2", "tower-log"]
+features = ["tokio", "http1", "http2", "tower-log", "matched-path", "macros"]
+[dependencies.axum-extra]
+version = "^0.7.7"
+features = ["typed-routing", "async-read-body"]
 [dependencies.time]
 version = "^0.3.26"
 default-features = false
 features = ["formatting"]
 [dependencies.tokio]
 version = "^1.32.0"
-features = ["rt-multi-thread", "macros", "signal"]
+features = ["rt-multi-thread", "macros", "signal", "fs"]
 [dependencies.tower]
 version = "^0.4.13"
 default-features = false
 [dependencies.tower-http]
 version = "^0.4.3"
 default-features = false
-features = ["trace"]
+features = ["trace", "normalize-path", "compression-br"]
 [dependencies.tracing]
 version = "^0.1.37"
 default-features = false
