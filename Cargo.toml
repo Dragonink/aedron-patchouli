@@ -2,7 +2,9 @@
 members = [
 	"server",
 	"client",
+	"server/plugins/media-music",
 ]
+resolver = "2"
 
 [workspace.package]
 version = "0.1.0"
@@ -13,3 +15,17 @@ publish = false
 
 [workspace.dependencies]
 log = "^0.4.20"
+[workspace.dependencies.pluglib]
+package = "aedron_patchouli-pluglib"
+path = "server/plugins/lib"
+[workspace.dependencies.serde]
+version = "^1.0.188"
+default-features = false
+features = ["derive"]
+[workspace.dependencies.sqlx]
+version = "^0.7.1"
+default-features = false
+features = ["sqlite"]
+
+[profile.dev.package.sqlx-macros]
+opt-level = 3

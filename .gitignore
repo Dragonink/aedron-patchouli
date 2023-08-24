@@ -1,2 +1,4 @@
 /target/
 /client/assets/out/
+
+*.sqlite*

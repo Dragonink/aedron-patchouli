@@ -24,7 +24,7 @@ mod assets;
 
 /// Constructs a new configured [`Router`]
 #[inline]
-pub(crate) fn new_router<S>() -> Router<S>
+pub(super) fn new_router<S>() -> Router<S>
 where
 	S: Clone + Send + Sync + 'static,
 {
@@ -71,7 +71,7 @@ macro_rules! get_client {
 
 /// Custom implementation of [`tower_http::trace`] traits to use with [`TraceLayer`](tower_http::trace::TraceLayer)
 #[derive(Debug, Default, Clone, Copy)]
-pub(crate) struct CustomTrace;
+struct CustomTrace;
 impl CustomTrace {
 	/// Constructs a new [`TraceLayer`] configured to use [`CustomTrace`]
 	#[inline]

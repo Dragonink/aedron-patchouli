@@ -1,18 +1,24 @@
+[env]
+DATABASE_URL = "sqlite://aedron-patchouli.sqlite"
+
 [target.wasm32-unknown-unknown]
 rustflags = [
 	# Enable all implemented features (see https://webassembly.org/roadmap)
 	"-Ctarget-feature=-atomics", # NOTE: `rlsf` does not support atomics
 	"-Ctarget-feature=+bulk-memory",
-	"-Ctarget-feature=-multivalue", # FIXME: multivalue does not work for now (see https://github.com/rust-lang/rust/issues/73755)
+	# "-Ctarget-feature=+exception-handling", "-Cllvm-args=-wasm-enable-eh", # FIXME: Does not work with `std` yet (see https://github.com/rust-lang/rust/pull/111322)
+	"-Ctarget-feature=-multivalue", # FIXME: Does not work for now (see https://github.com/rust-lang/rust/issues/73755)
 	"-Ctarget-feature=+mutable-globals",
 	"-Ctarget-feature=+nontrapping-fptoint",
 	"-Ctarget-feature=+reference-types",
 	"-Ctarget-feature=-relaxed-simd", # FIXME: Not implemented yet
 	"-Ctarget-feature=+sign-ext",
 	"-Ctarget-feature=+simd128",
-	"-Ctarget-feature=+exception-handling",
 	"-Ctarget-feature=+extended-const",
-	"-Ctarget-feature=-tail-call", # FIXME: tail-call is currently only supported by Chrome
+	"-Ctarget-feature=-tail-call", # FIXME: Is currently only supported by Chrome
 
 	# TODO should probably rebuild `std` with the features
 ]
+
+[patch.crates-io]
+tower-http = { path = "../tower-http/tower-http" }

@@ -59,16 +59,29 @@
 	keyword_idents,
 	non_ascii_idents,
 	missing_abi,
+	unsafe_code,
 	unsafe_op_in_unsafe_fn,
 	unused_must_use,
 	clippy::exit,
 	clippy::lossy_float_literal,
 )]
-#![forbid(unsafe_code, clippy::undocumented_unsafe_blocks)]
+#![forbid(clippy::undocumented_unsafe_blocks)]
 
-use std::{error::Error, net::SocketAddr};
+use axum::{extract::FromRef, Server};
+use plugins::PluginStore;
+use sqlx::SqlitePool;
+use std::{
+	error::Error,
+	net::{Ipv4Addr, SocketAddr},
+	sync::Arc,
+};
 
+/// Name of the server executable
+const EXE_NAME: &str = env!("CARGO_BIN_NAME");
+
+mod db;
 mod http;
+mod plugins;
 
 /// Sets up the application's logger
 ///
@@ -95,8 +108,6 @@ fn setup_logger() -> Result<(), fern::InitError> {
 		OffsetDateTime,
 	};
 
-	/// Name of the application to be used in logs
-	const APP_NAME: &str = "aedron-patchouli";
 	/// [`log`] target used by panics
 	const PANIC_TARGET: &str = "PANIC";
 	/// Format of the timestamps
@@ -119,7 +130,10 @@ fn setup_logger() -> Result<(), fern::InitError> {
 		.chain(
 			Dispatch::new()
 				.format(move |out, message, record| {
-					let Ok(timestamp) = OffsetDateTime::now_utc().format(&Iso8601::<TIME_FORMAT>) else { unreachable!() };
+					let Ok(timestamp) = OffsetDateTime::now_utc().format(&Iso8601::<TIME_FORMAT>)
+					else {
+						unreachable!()
+					};
 					let target = record.target();
 
 					let message = message.to_string();
@@ -129,13 +143,17 @@ fn setup_logger() -> Result<(), fern::InitError> {
 						message.normal()
 					};
 
-					let target = target.strip_prefix(env!("CARGO_CRATE_NAME"))
-						.map(|target| APP_NAME.to_owned() + target)
-						.unwrap_or_else(|| if target == PANIC_TARGET {
-							APP_NAME
-						} else {
-							target
-						}.to_owned())
+					let target = target
+						.strip_prefix(env!("CARGO_CRATE_NAME"))
+						.map(|target| EXE_NAME.to_owned() + target)
+						.unwrap_or_else(|| {
+							if target == PANIC_TARGET {
+								EXE_NAME
+							} else {
+								target
+							}
+							.to_owned()
+						})
 						.dimmed();
 
 					out.finish(format_args!(
@@ -153,7 +171,7 @@ fn setup_logger() -> Result<(), fern::InitError> {
 		let syslog_formatter = syslog::Formatter3164 {
 			facility: syslog::Facility::LOG_USER,
 			hostname: None,
-			process: APP_NAME.to_owned(),
+			process: EXE_NAME.to_owned(),
 			pid: 0,
 		};
 		logger = logger.chain(
@@ -170,13 +188,17 @@ fn setup_logger() -> Result<(), fern::InitError> {
 		let thread = std::thread::current();
 		let thread = thread.name().unwrap_or("<unnamed>");
 
-		let message = match panic_info.payload().downcast_ref::<&str>() {
-			Some(s) => *s,
-			None => match panic_info.payload().downcast_ref::<String>() {
-				Some(s) => s.as_str(),
-				None => "of unknown reasons",
-			},
-		};
+		let message = panic_info
+			.payload()
+			.downcast_ref::<&str>()
+			.copied()
+			.or_else(|| {
+				panic_info
+					.payload()
+					.downcast_ref::<String>()
+					.map(|s| s.as_str())
+			})
+			.unwrap_or("of unknown reasons");
 
 		if let Some(location) = panic_info.location() {
 			log::error!(target: PANIC_TARGET, "Thread '{thread}' panicked at `{}:{}:{}` because {message}", location.file(), location.line(), location.column());
@@ -188,21 +210,47 @@ fn setup_logger() -> Result<(), fern::InitError> {
 	Ok(())
 }
 
+/// Stores the server's state
+#[derive(Debug, Clone, FromRef)]
+struct AppState {
+	/// Pool of connections to the database
+	db_pool: SqlitePool,
+	/// Stores all plugins
+	plugins: Arc<PluginStore>,
+}
+
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
-	use axum::Server;
-	use std::net::Ipv4Addr;
+async fn main() {
+	/// Inner [`main`] function used to [`Display`] the returned error
+	async fn _main() -> Result<(), Box<dyn Error>> {
+		setup_logger()?;
 
-	setup_logger()?;
+		let db_pool = db::init_database().await?;
 
-	let addr = SocketAddr::new(Ipv4Addr::UNSPECIFIED.into(), 2372);
-	log::info!("Starting the server on {addr}");
-	Server::bind(&addr)
-		.serve(http::new_router().into_make_service_with_connect_info::<SocketAddr>())
-		.with_graceful_shutdown(graceful_shutdown())
-		.await?;
+		let plugins = PluginStore::load_plugins();
+		plugins.update_database(db_pool.acquire().await?).await?;
 
-	Ok(())
+		let state = AppState {
+			db_pool,
+			plugins: Arc::new(plugins),
+		};
+
+		let addr = SocketAddr::new(Ipv4Addr::UNSPECIFIED.into(), 2372);
+		log::info!("Starting the server on {addr}");
+		Server::bind(&addr)
+			.serve(
+				http::new_router()
+					.with_state(state)
+					.into_make_service_with_connect_info::<SocketAddr>(),
+			)
+			.with_graceful_shutdown(graceful_shutdown())
+			.await?;
+
+		Ok(())
+	}
+	if let Err(err) = _main().await {
+		panic!("{err}");
+	}
 }
 
 /// Returns a [`Future`](std::future::Future) that resolves when the ⌃C signal is caught
