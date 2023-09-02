@@ -1,4 +1,5 @@
 /target/
 /client/assets/out/
 
-*.sqlite*
+/*.sqlite*
+/config.*

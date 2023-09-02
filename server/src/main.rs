@@ -68,20 +68,20 @@
 #![forbid(clippy::undocumented_unsafe_blocks)]
 
 use axum::{extract::FromRef, Server};
+use colored::Colorize;
 use plugins::PluginStore;
 use sqlx::SqlitePool;
-use std::{
-	error::Error,
-	net::{Ipv4Addr, SocketAddr},
-	sync::Arc,
-};
+use std::{error::Error, net::SocketAddr, sync::Arc};
 
 /// Name of the server executable
 const EXE_NAME: &str = env!("CARGO_BIN_NAME");
 
+mod config;
 mod db;
 mod http;
 mod plugins;
+
+use config::Config;
 
 /// Sets up the application's logger
 ///
@@ -94,7 +94,6 @@ mod plugins;
 ///
 /// Also, the [panic hook](std::panic::set_hook) is set to output panic info through the logger.
 fn setup_logger() -> Result<(), fern::InitError> {
-	use colored::Colorize;
 	use fern::{
 		colors::{Color, ColoredLevelConfig},
 		Dispatch, InitError,
@@ -213,6 +212,8 @@ fn setup_logger() -> Result<(), fern::InitError> {
 /// Stores the server's state
 #[derive(Debug, Clone, FromRef)]
 struct AppState {
+	/// Configuration of the server
+	config: Arc<Config>,
 	/// Pool of connections to the database
 	db_pool: SqlitePool,
 	/// Stores all plugins
@@ -225,18 +226,22 @@ async fn main() {
 	async fn _main() -> Result<(), Box<dyn Error>> {
 		setup_logger()?;
 
+		let config = config::build_config()?;
+		log::trace!("{config:?}");
+		let addr = SocketAddr::new(config.addr, config.port);
+
 		let db_pool = db::init_database().await?;
 
 		let plugins = PluginStore::load_plugins();
 		plugins.update_database(db_pool.acquire().await?).await?;
 
 		let state = AppState {
+			config: Arc::new(config),
 			db_pool,
 			plugins: Arc::new(plugins),
 		};
 
-		let addr = SocketAddr::new(Ipv4Addr::UNSPECIFIED.into(), 2372);
-		log::info!("Starting the server on {addr}");
+		log::info!("{}", format!("Starting the server on {addr}").bold().cyan());
 		Server::bind(&addr)
 			.serve(
 				http::new_router()

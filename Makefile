@@ -18,6 +18,10 @@ endif
 WASM_TARGET := wasm32-unknown-unknown
 
 
+FORCE :
+Cargo.lock : FORCE
+	$(CARGO) update --workspace
+
 -include target/$(WASM_TARGET)/$(RUST_PROFILE_DIR)/aedron_patchouli_client.d
 $(CURDIR)/target/$(WASM_TARGET)/$(RUST_PROFILE_DIR)/aedron_patchouli_client.wasm : .EXTRA_PREREQS += Cargo.* client/Cargo.toml
 $(CURDIR)/target/$(WASM_TARGET)/$(RUST_PROFILE_DIR)/aedron_patchouli_client.wasm :

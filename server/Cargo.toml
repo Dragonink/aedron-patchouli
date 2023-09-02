@@ -6,6 +6,17 @@ repository = { workspace = true }
 edition = { workspace = true }
 publish = { workspace = true }
 
+[features]
+config-toml = ["config/toml"]
+config-json = ["config/json"]
+config-yaml = ["config/yaml"]
+
+default = [
+	"config-toml",
+	"config-json",
+	"config-yaml",
+]
+
 [[bin]]
 name = "aedron-patchouli"
 path = "src/main.rs"
@@ -14,6 +25,7 @@ path = "src/main.rs"
 colored = "^2.0.4"
 libloading = "^0.8.0"
 log = { workspace = true }
+serde = { workspace = true }
 [dependencies.pluglib]
 workspace = true
 features = ["server"]
@@ -24,6 +36,9 @@ features = ["tokio", "http1", "http2", "tower-log", "matched-path", "macros"]
 [dependencies.axum-extra]
 version = "^0.7.7"
 features = ["typed-routing", "async-read-body"]
+[dependencies.config]
+version = "^0.13.3"
+default-features = false
 [dependencies.sqlx]
 workspace = true
 features = ["runtime-tokio", "json", "macros"]
