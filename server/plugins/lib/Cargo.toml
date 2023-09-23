@@ -7,17 +7,25 @@ edition = { workspace = true }
 
 [features]
 # Plugin type features
-media = ["dep:sqlx", "dep:time"]
+media = ["dep:rusqlite", "dep:time"]
 # Internal features
-server = ["media", "dep:serde"]
+server = [
+	"media",
+	"dep:serde",
+	"dep:serde_json",
+	"rusqlite/serde_json",
+	"time/serde",
+]
 
-[dependencies.sqlx]
+[dependencies.rusqlite]
 workspace = true
 optional = true
 [dependencies.serde]
 workspace = true
 optional = true
+[dependencies.serde_json]
+version = "^1.0.107"
+optional = true
 [dependencies.time]
-version = "^0.3.27"
-default-features = false
+workspace = true
 optional = true

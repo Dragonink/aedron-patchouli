@@ -37,6 +37,7 @@
 	clippy::inefficient_to_string,
 	clippy::macro_use_imports,
 	clippy::manual_let_else,
+	clippy::map_unwrap_or,
 	clippy::match_wildcard_for_single_variants,
 	clippy::missing_errors_doc,
 	clippy::missing_panics_doc,
@@ -66,6 +67,8 @@
 )]
 #![forbid(clippy::undocumented_unsafe_blocks)]
 
+#[cfg(feature = "server")]
+use rusqlite::types::{FromSql, FromSqlError, FromSqlResult, ToSql, ToSqlOutput, ValueRef};
 #[cfg(feature = "server")]
 use serde::{Deserialize, Serialize};
 use std::{
@@ -152,7 +155,23 @@ impl Ord for Version {
 }
 impl Display for Version {
 	fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-		write!(f, "v{}.{}.{}", self.major, self.minor, self.patch)
+		write!(f, "{}.{}.{}", self.major, self.minor, self.patch)
+	}
+}
+#[cfg(feature = "server")]
+impl FromSql for Version {
+	#[inline]
+	fn column_result(value: ValueRef<'_>) -> FromSqlResult<Self> {
+		value
+			.as_str()
+			.and_then(|s| s.parse().map_err(|err| FromSqlError::Other(Box::new(err))))
+	}
+}
+#[cfg(feature = "server")]
+impl ToSql for Version {
+	#[inline]
+	fn to_sql(&self) -> rusqlite::Result<ToSqlOutput<'_>> {
+		Ok(self.to_string().into())
 	}
 }
 

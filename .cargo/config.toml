@@ -1,6 +1,3 @@
-[env]
-DATABASE_URL = "sqlite://aedron-patchouli.sqlite"
-
 [target.wasm32-unknown-unknown]
 rustflags = [
 	# Enable all implemented features (see https://webassembly.org/roadmap)

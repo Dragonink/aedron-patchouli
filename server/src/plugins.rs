@@ -1,26 +1,32 @@
 #![allow(unsafe_code)]
 //! Provides the server's plugin features
 
-use crate::EXE_NAME;
-use libloading::{Library, Symbol};
-use pluglib::{
-	media::{DescribeMedia, ExtractMetadata},
-	PluginVersion, Version,
+mod media;
+
+use crate::{config::MediaConfig, EXE_NAME};
+use media::MediaPlugin;
+use pluglib::Version;
+use r2d2::Pool;
+use r2d2_sqlite::SqliteConnectionManager;
+use rayon::prelude::*;
+use rusqlite::{
+	types::{FromSql, FromSqlError, FromSqlResult, ToSqlOutput, ValueRef},
+	Row, ToSql,
 };
-use sqlx::{pool::PoolConnection, types::Json, FromRow, QueryBuilder, Sqlite, Type};
 use std::{
 	collections::{HashMap, HashSet},
 	error::Error,
 	fmt::{self, Debug, Display, Formatter},
 	hash::{Hash, Hasher},
 	path::{Path, PathBuf},
+	str::FromStr,
 };
 
 /// Stores all plugins
 #[derive(Debug, Default)]
-pub(super) struct PluginStore {
+pub(crate) struct PluginStore {
 	/// Stores media plugins
-	pub(super) media: HashMap<Box<str>, MediaPlugin>,
+	pub(crate) media: HashMap<String, MediaPlugin>,
 }
 impl PluginStore {
 	/// Returns the directories to search plugins in
@@ -97,162 +103,126 @@ impl PluginStore {
 	}
 
 	/// Updates the database with the loaded plugins
-	pub(super) async fn update_database(
+	pub(super) fn update_database(
 		&self,
-		mut conn: PoolConnection<Sqlite>,
-	) -> sqlx::Result<()> {
-		let mut plugins = sqlx::query_as::<_, DbPlugin>(r#"SELECT * FROM plugins"#)
-			.persistent(false)
-			.fetch_all(&mut *conn)
-			.await?
-			.into_iter()
-			.collect::<HashSet<_>>();
-
-		for plugin in self.media.values() {
+		db_pool: &Pool<SqliteConnectionManager>,
+	) -> Result<(), Box<dyn Error>> {
+		let plugins = {
+			let conn = db_pool.get()?;
+			let mut stmt = conn.prepare("SELECT * FROM plugins")?;
+			let plugins = stmt
+				.query_map((), |row| DbPlugin::try_from(row))?
+				.filter_map(|res| match res {
+					Ok(db_plugin) => Some(db_plugin),
+					Err(err) => {
+						log::error!("{err}");
+						None
+					}
+				})
+				.collect::<HashSet<_>>();
+			stmt.finalize()?;
+			plugins
+		};
+		self.media.values().for_each(|plugin| {
 			let db_plugin = plugin.into();
 			let update_schema = if plugins.contains(&db_plugin) {
 				let Some(old_plugin) = plugins.get(&db_plugin) else {
 					unreachable!()
 				};
-				db_plugin.version.is_compatible(&old_plugin.version)
+				!db_plugin.version.is_compatible(&old_plugin.version)
 			} else {
 				true
 			};
-			plugins.remove(&db_plugin);
-
 			if update_schema {
-				let media = match plugin.describe_media() {
-					Ok(f) => f(),
-					Err(err) => {
-						log::warn!("Invalid {plugin}: {err}");
-						continue;
-					}
-				};
-
-				let table_ident = format!("{}_media", media.ident);
-				let mut qb = QueryBuilder::new(format!(
-					"DROP TABLE IF EXISTS {table_ident}; CREATE TABLE {table_ident}"
-				));
-				let mut cols = qb.separated(',');
-				cols.push_unseparated('(')
-					.push("path TEXT NOT NULL PRIMARY KEY");
-				media.fields.iter().for_each(|field| {
-					cols.push(format!(
-						"{} {}",
-						field.ident,
-						if field.is_list {
-							"TEXT NOT NULL DEFAULT (json_array())"
-						} else {
-							field.r#type.to_sql()
-						}
-					));
-				});
-				cols.push_unseparated(')');
-				qb.build().persistent(false).execute(&mut *conn).await?;
-
-				sqlx::query!(
-					"INSERT INTO plugins(name, kind, version) VALUES (?, ?, ?)",
-					db_plugin.name,
-					db_plugin.kind,
-					db_plugin.version
-				)
-				.execute(&mut *conn)
-				.await?;
-
-				log::debug!("Updated the database schema for {}", media.name);
+				if let Err(err) = plugin.update_database(db_pool, db_plugin) {
+					log::error!("Could not insert {plugin} into the database: {err}");
+				}
 			}
-		}
+		});
 
 		Ok(())
 	}
-}
 
-/// Structure of a [media plugin](pluglib::media)
-pub(super) struct MediaPlugin {
-	/// Dynamic library
-	lib: Library,
-
-	/// Name of the plugin
-	pub(super) name: Box<str>,
-	/// Version of the plugin
-	pub(super) version: Version,
-}
-impl MediaPlugin {
-	/// Returns a description of the media type provided by the plugin
+	/// Loads all media files
 	#[inline]
-	pub(super) fn describe_media(&self) -> Result<Symbol<'_, DescribeMedia>, libloading::Error> {
-		// SAFETY: Upheld by plugin
-		unsafe { self.lib.get(b"describe_media\0") }
-	}
-
-	/// Extracts the metadata of the given media
-	pub(super) fn extract_metadata(
+	pub(super) fn load_media(
 		&self,
-	) -> Result<Symbol<'_, ExtractMetadata>, libloading::Error> {
-		// SAFETY: Upheld by plugin
-		unsafe { self.lib.get(b"extract_metadata\0") }
-	}
-}
-impl TryFrom<&Path> for MediaPlugin {
-	type Error = PluginLoadError;
-
-	fn try_from(path: &Path) -> Result<Self, Self::Error> {
-		// SAFETY: Upheld by the plugin
-		let lib = unsafe { Library::new(path)? };
-
-		let Some(name) = path.file_stem().map(|s| s.to_string_lossy().into()) else {
-			unreachable!()
-		};
-
-		// SAFETY: Upheld by the plugin
-		let pluglib_version = unsafe { &**lib.get::<*const Version>(b"PLUGLIB_VERSION\0")? };
-		if !pluglib::media::PLUGLIB_VERSION.is_compatible(pluglib_version) {
-			return Err(PluginLoadError::IncompatibleLibVersions {
-				kind: PluginKind::Media,
-				name,
-				plugin: *pluglib_version,
+		db_pool: &Pool<SqliteConnectionManager>,
+		config: &HashMap<String, MediaConfig>,
+	) {
+		self.media
+			.par_iter()
+			.filter_map(|(name, plugin)| config.get(name).map(|config| (plugin, config)))
+			.for_each(|(plugin, config)| {
+				let conn = loop {
+					if let Some(conn) = db_pool.try_get() {
+						break conn;
+					}
+					std::thread::yield_now();
+				};
+				if let Err(err) = plugin.load_media(conn, config) {
+					log::error!("Could not commit media of {plugin}: {err}");
+				}
 			});
-		}
-
-		// SAFETY: Upheld by the plugin
-		let plugin_version = unsafe { lib.get::<PluginVersion>(b"plugin_version\0")? };
-		let version = plugin_version();
-
-		Ok(Self { lib, name, version })
-	}
-}
-impl Debug for MediaPlugin {
-	fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-		write!(f, "{self} ({:?})", self.lib)
-	}
-}
-impl Display for MediaPlugin {
-	fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-		write!(f, "media plugin <{} {}>", self.name, self.version)
 	}
 }
 
 /// Kind of plugin
 #[non_exhaustive]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Type)]
-#[sqlx(rename_all = "lowercase")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(super) enum PluginKind {
 	/// A [media plugin](MediaPlugin)
 	Media,
+}
+impl FromStr for PluginKind {
+	type Err = InvalidPluginKind;
+
+	#[inline]
+	fn from_str(s: &str) -> Result<Self, Self::Err> {
+		match s {
+			"media" => Ok(Self::Media),
+			_ => Err(InvalidPluginKind),
+		}
+	}
+}
+impl Display for PluginKind {
+	#[inline]
+	fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+		f.write_str(&format!("{self:?}").to_ascii_lowercase())
+	}
+}
+impl FromSql for PluginKind {
+	#[inline]
+	fn column_result(value: ValueRef<'_>) -> FromSqlResult<Self> {
+		value
+			.as_str()
+			.and_then(|s| s.parse().map_err(|err| FromSqlError::Other(Box::new(err))))
+	}
+}
+impl ToSql for PluginKind {
+	#[inline]
+	fn to_sql(&self) -> rusqlite::Result<ToSqlOutput<'_>> {
+		Ok(ToSqlOutput::Borrowed(ValueRef::Text(
+			match self {
+				Self::Media => "media",
+			}
+			.as_bytes(),
+		)))
+	}
 }
 
 /// Structure of the `plugins` database table
 ///
 /// The [`PartialEq`], [`Eq`] and [`Hash`] implementations
 /// corresponds to the table's PRIMARY KEY.
-#[derive(Debug, Clone, FromRow)]
+#[derive(Debug, Clone)]
 struct DbPlugin {
 	/// Name of the plugin
 	name: String,
 	/// Kind of the plugin
 	kind: PluginKind,
 	/// Version of the plugin
-	version: Json<Version>,
+	version: Version,
 }
 impl From<&MediaPlugin> for DbPlugin {
 	#[inline]
@@ -260,8 +230,20 @@ impl From<&MediaPlugin> for DbPlugin {
 		Self {
 			name: value.name.clone().into_string(),
 			kind: PluginKind::Media,
-			version: Json(value.version),
+			version: value.version,
 		}
+	}
+}
+impl<'stmt> TryFrom<&'stmt Row<'stmt>> for DbPlugin {
+	type Error = rusqlite::Error;
+
+	#[inline]
+	fn try_from(row: &'stmt Row) -> Result<Self, Self::Error> {
+		Ok(Self {
+			name: row.get("name")?,
+			kind: row.get("kind")?,
+			version: row.get("version")?,
+		})
 	}
 }
 impl PartialEq for DbPlugin {
@@ -276,6 +258,11 @@ impl Hash for DbPlugin {
 	fn hash<H: Hasher>(&self, state: &mut H) {
 		self.name.hash(state);
 		self.kind.hash(state);
+	}
+}
+impl Display for DbPlugin {
+	fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+		write!(f, "{} plugin <{} {}>", self.kind, self.name, self.version)
 	}
 }
 
@@ -320,4 +307,33 @@ impl Error for PluginLoadError {
 			Self::IncompatibleLibVersions { .. } => None,
 		}
 	}
+}
+
+/// Error that may occur in [`PluginKind::from_str`]
+#[derive(Debug, Default)]
+pub(crate) struct InvalidPluginKind;
+impl Display for InvalidPluginKind {
+	#[inline]
+	fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+		f.write_str("invalud PluginKind value")
+	}
+}
+impl Error for InvalidPluginKind {
+	#[inline]
+	fn source(&self) -> Option<&(dyn Error + 'static)> {
+		None
+	}
+}
+
+/// Trait for plugin structures
+trait Plugin: Debug + Display + for<'p> TryFrom<&'p Path, Error = PluginLoadError>
+where
+	for<'this> &'this Self: Into<DbPlugin>,
+{
+	/// Updates the database with the plugin
+	fn update_database(
+		&self,
+		db_pool: &Pool<SqliteConnectionManager>,
+		db_plugin: DbPlugin,
+	) -> Result<(), Box<dyn Error>>;
 }

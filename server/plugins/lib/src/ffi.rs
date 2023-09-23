@@ -1,19 +1,26 @@
 //! Provides FFI-safe abstractions
 
 use core::ffi::FromBytesUntilNulError;
+#[cfg(feature = "server")]
+use rusqlite::{
+	types::{ToSqlOutput, Value, ValueRef},
+	ToSql,
+};
+#[cfg(feature = "server")]
+use serde::{Serialize, Serializer};
 use std::{
 	cmp::Ordering,
 	ffi::{c_char, CStr, CString, NulError},
-	fmt::{self, Display, Formatter},
+	fmt::{self, Debug, Display, Formatter},
 	marker::PhantomData,
 	ops::{Deref, DerefMut},
 	slice::{Iter, IterMut},
 };
-use time::Time;
+use time::{format_description::well_known::Iso8601, Date, Time};
 
 /// FFI-safe [`slice`]
 #[repr(C)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy)]
 pub struct FfiSlice<'t, T> {
 	/// Pointer to the data
 	ptr: *const T,
@@ -82,10 +89,41 @@ impl<'t, T> IntoIterator for &'t FfiSlice<'t, T> {
 		self.deref().iter()
 	}
 }
+impl<'t, T> Debug for FfiSlice<'t, T>
+where
+	&'t [T]: Debug,
+{
+	#[inline]
+	fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+		Debug::fmt(&self.to_slice(), f)
+	}
+}
+// SAFETY: This struct does not share mutable state with anything else
+unsafe impl<'t, T> Send for FfiSlice<'t, T> where &'t [T]: Send {}
+// SAFETY: This struct cannot be mutated
+unsafe impl<'t, T> Sync for FfiSlice<'t, T> where &'t [T]: Sync {}
+#[cfg(feature = "server")]
+impl<'t, T: ToSql> ToSql for FfiSlice<'t, T>
+where
+	[T]: Serialize,
+{
+	#[inline]
+	fn to_sql(&self) -> rusqlite::Result<ToSqlOutput<'_>> {
+		serde_json::to_string(self.to_slice())
+			.map(ToSqlOutput::from)
+			.map_err(|err| rusqlite::Error::ToSqlConversionFailure(err.into()))
+	}
+}
+#[cfg(feature = "server")]
+impl<'t, T: Serialize> Serialize for FfiSlice<'t, T> {
+	#[inline]
+	fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+		self.to_slice().serialize(serializer)
+	}
+}
 
 /// FFI-safe [`Box<[T]>`]
 #[repr(C)]
-#[derive(Debug)]
 pub struct FfiBoxedSlice<T> {
 	/// Pointer to the data
 	ptr: *mut T,
@@ -130,6 +168,12 @@ impl<T> FfiBoxedSlice<T> {
 		// SAFETY: This struct can only be constructed from a `Box<[T]>`,
 		// and there is no way to get the ownership of the data.
 		unsafe { std::slice::from_raw_parts(self.ptr, self.len) }
+	}
+}
+impl<T> Default for FfiBoxedSlice<T> {
+	#[inline]
+	fn default() -> Self {
+		Self::new(Default::default())
 	}
 }
 impl<T: Clone> Clone for FfiBoxedSlice<T> {
@@ -192,10 +236,42 @@ impl<'slice, T> IntoIterator for &'slice mut FfiBoxedSlice<T> {
 		self.deref_mut().iter_mut()
 	}
 }
+impl<T> Debug for FfiBoxedSlice<T>
+where
+	[T]: Debug,
+{
+	#[inline]
+	fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+		Debug::fmt(self.to_slice(), f)
+	}
+}
+// SAFETY: This struct does not share mutable state with anything else
+unsafe impl<T> Send for FfiBoxedSlice<T> where Box<[T]>: Send {}
+// SAFETY: This struct cannot be mutated if it is not mutably borrowed
+unsafe impl<T> Sync for FfiBoxedSlice<T> where Box<[T]>: Sync {}
+#[cfg(feature = "server")]
+impl<T: ToSql> ToSql for FfiBoxedSlice<T>
+where
+	[T]: Serialize,
+{
+	#[inline]
+	fn to_sql(&self) -> rusqlite::Result<ToSqlOutput<'_>> {
+		serde_json::to_string(self.to_slice())
+			.map(ToSqlOutput::from)
+			.map_err(|err| rusqlite::Error::ToSqlConversionFailure(err.into()))
+	}
+}
+#[cfg(feature = "server")]
+impl<T: Serialize> Serialize for FfiBoxedSlice<T> {
+	#[inline]
+	fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+		self.to_slice().serialize(serializer)
+	}
+}
 
 /// FFI-safe [`str`]
 #[repr(C)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy)]
 pub struct FfiStr<'s> {
 	/// Pointer to the data
 	ptr: *const c_char,
@@ -253,10 +329,48 @@ impl<'s> Deref for FfiStr<'s> {
 		self.to_str()
 	}
 }
+impl<'s> Debug for FfiStr<'s> {
+	#[inline]
+	fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+		Debug::fmt(self.to_str(), f)
+	}
+}
 impl<'s> Display for FfiStr<'s> {
 	#[inline]
 	fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-		Display::fmt(self.deref(), f)
+		Display::fmt(self.to_str(), f)
+	}
+}
+// SAFETY: This struct does not share mutable state with anything else
+unsafe impl<'s> Send for FfiStr<'s> where &'s str: Send {}
+// SAFETY: This struct cannot be mutated
+unsafe impl<'s> Sync for FfiStr<'s> where &'s str: Sync {}
+#[cfg(feature = "server")]
+impl<'s> From<&'s FfiStr<'s>> for ValueRef<'s> {
+	#[inline]
+	fn from(s: &'s FfiStr<'s>) -> Self {
+		Self::from(s.to_str())
+	}
+}
+#[cfg(feature = "server")]
+impl<'s> From<FfiStr<'s>> for Value {
+	#[inline]
+	fn from(s: FfiStr<'s>) -> Self {
+		Self::from(s.to_str().to_owned())
+	}
+}
+#[cfg(feature = "server")]
+impl<'s> ToSql for FfiStr<'s> {
+	#[inline]
+	fn to_sql(&self) -> rusqlite::Result<ToSqlOutput<'_>> {
+		Ok(ToSqlOutput::Borrowed(self.into()))
+	}
+}
+#[cfg(feature = "server")]
+impl<'s> Serialize for FfiStr<'s> {
+	#[inline]
+	fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+		self.to_str().serialize(serializer)
 	}
 }
 
@@ -274,7 +388,6 @@ pub use new_ffistr;
 
 /// FFI-safe [`String`]
 #[repr(C)]
-#[derive(Debug)]
 pub struct FfiString {
 	/// Pointer to the data
 	ptr: *mut c_char,
@@ -339,10 +452,16 @@ impl Deref for FfiString {
 		self.to_str()
 	}
 }
+impl Debug for FfiString {
+	#[inline]
+	fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+		Debug::fmt(self.to_str(), f)
+	}
+}
 impl Display for FfiString {
 	#[inline]
 	fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-		Display::fmt(self.deref(), f)
+		Display::fmt(self.to_str(), f)
 	}
 }
 impl Drop for FfiString {
@@ -351,6 +470,89 @@ impl Drop for FfiString {
 		// SAFETY: This struct can only be constructed from a `String`,
 		// and there is no way to get the ownership of the data.
 		drop(unsafe { CString::from_raw(self.ptr) });
+	}
+}
+// SAFETY: This struct does not share mutable state with anything else
+unsafe impl Send for FfiString where String: Send {}
+// SAFETY: This struct cannot be mutated
+unsafe impl Sync for FfiString where String: Sync {}
+#[cfg(feature = "server")]
+impl<'s> From<&'s FfiString> for ValueRef<'s> {
+	#[inline]
+	fn from(s: &'s FfiString) -> Self {
+		Self::from(s.to_str())
+	}
+}
+#[cfg(feature = "server")]
+impl From<FfiString> for Value {
+	#[inline]
+	fn from(s: FfiString) -> Self {
+		Self::from(s.to_str().to_owned())
+	}
+}
+#[cfg(feature = "server")]
+impl ToSql for FfiString {
+	#[inline]
+	fn to_sql(&self) -> rusqlite::Result<ToSqlOutput<'_>> {
+		Ok(ToSqlOutput::Borrowed(self.into()))
+	}
+}
+#[cfg(feature = "server")]
+impl Serialize for FfiString {
+	#[inline]
+	fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+		self.to_str().serialize(serializer)
+	}
+}
+
+/// FFI-safe [`Date`]
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub struct FfiDate(pub(crate) i32);
+impl From<Date> for FfiDate {
+	#[inline]
+	fn from(date: Date) -> Self {
+		Self(date.to_julian_day())
+	}
+}
+impl From<FfiDate> for Date {
+	#[inline]
+	fn from(date: FfiDate) -> Self {
+		Self::from_julian_day(date.0).unwrap_or_else(|_err| unreachable!())
+	}
+}
+#[cfg(feature = "server")]
+impl From<FfiDate> for Value {
+	#[inline]
+	fn from(date: FfiDate) -> Self {
+		Date::from(date)
+			.format(&Iso8601::DEFAULT)
+			.unwrap_or_else(|_err| unreachable!())
+			.into()
+	}
+}
+#[cfg(feature = "server")]
+impl ToSql for FfiDate {
+	#[inline]
+	fn to_sql(&self) -> rusqlite::Result<ToSqlOutput<'_>> {
+		Ok(ToSqlOutput::Owned((*self).into()))
+	}
+}
+#[cfg(feature = "server")]
+impl From<FfiDate> for serde_json::Value {
+	#[inline]
+	fn from(date: FfiDate) -> Self {
+		Date::from(date)
+			.format(&Iso8601::DEFAULT)
+			.unwrap_or_else(|_err| unreachable!())
+			.into()
+	}
+}
+#[cfg(feature = "server")]
+impl Serialize for FfiDate {
+	#[inline]
+	fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+		Date::from(*self).serialize(serializer)
 	}
 }
 
@@ -397,6 +599,40 @@ impl Ord for FfiTime {
 			.then_with(|| self.second.cmp(&other.second))
 	}
 }
+#[cfg(feature = "server")]
+impl From<FfiTime> for Value {
+	#[inline]
+	fn from(time: FfiTime) -> Self {
+		Time::from(time)
+			.format(&Iso8601::DEFAULT)
+			.unwrap_or_else(|_err| unreachable!())
+			.into()
+	}
+}
+#[cfg(feature = "server")]
+impl ToSql for FfiTime {
+	#[inline]
+	fn to_sql(&self) -> rusqlite::Result<ToSqlOutput<'_>> {
+		Ok(ToSqlOutput::Owned((*self).into()))
+	}
+}
+#[cfg(feature = "server")]
+impl From<FfiTime> for serde_json::Value {
+	#[inline]
+	fn from(time: FfiTime) -> Self {
+		Time::from(time)
+			.format(&Iso8601::DEFAULT)
+			.unwrap_or_else(|_err| unreachable!())
+			.into()
+	}
+}
+#[cfg(feature = "server")]
+impl Serialize for FfiTime {
+	#[inline]
+	fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+		Time::from(*self).serialize(serializer)
+	}
+}
 
 /// FFI-safe [`Option`]
 #[repr(C)]
@@ -406,6 +642,16 @@ pub enum FfiOption<T> {
 	Some(T),
 	/// [`Option::None`]
 	None,
+}
+impl<T> FfiOption<T> {
+	/// Converts from `&FfiOption<T>` to `Option<&T>`
+	#[inline]
+	pub const fn as_ref(&self) -> Option<&T> {
+		match self {
+			Self::Some(value) => Some(value),
+			Self::None => None,
+		}
+	}
 }
 impl<T> From<Option<T>> for FfiOption<T> {
 	#[inline]
@@ -428,6 +674,29 @@ impl<T> From<FfiOption<T>> for Option<T> {
 		match option {
 			FfiOption::Some(value) => Some(value),
 			FfiOption::None => None,
+		}
+	}
+}
+#[cfg(feature = "server")]
+impl<T: ToSql> ToSql for FfiOption<T> {
+	#[inline]
+	fn to_sql(&self) -> rusqlite::Result<ToSqlOutput<'_>> {
+		match self {
+			Self::Some(value) => value.to_sql(),
+			#[allow(unused_qualifications)]
+			Self::None => Option::<T>::None.to_sql(),
+		}
+	}
+}
+#[cfg(feature = "server")]
+impl<T: Serialize> Serialize for FfiOption<T> {
+	#[inline]
+	fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+		if let Self::Some(value) = self {
+			Some(value).serialize(serializer)
+		} else {
+			#[allow(unused_qualifications)]
+			Option::<T>::None.serialize(serializer)
 		}
 	}
 }

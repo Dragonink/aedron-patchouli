@@ -20,7 +20,7 @@ WASM_TARGET := wasm32-unknown-unknown
 
 FORCE :
 Cargo.lock : FORCE
-	$(CARGO) update --workspace
+	$(CARGO) update
 
 -include target/$(WASM_TARGET)/$(RUST_PROFILE_DIR)/aedron_patchouli_client.d
 $(CURDIR)/target/$(WASM_TARGET)/$(RUST_PROFILE_DIR)/aedron_patchouli_client.wasm : .EXTRA_PREREQS += Cargo.* client/Cargo.toml
@@ -50,13 +50,9 @@ $(addprefix client/assets/out/main,_bg.wasm .js) &: $(CURDIR)/target/$(WASM_TARG
 .PHONY : client
 client : $(addprefix client/assets/out/main,_bg.wasm .js)
 
-aedron-patchouli.sqlite : server/sql/init.sql
-	$(RM) $@
-	$(SQLITE) $@ < $<
-
 -include target/$(RUST_PROFILE_DIR)/aedron-patchouli.d
 $(CURDIR)/target/$(RUST_PROFILE_DIR)/aedron-patchouli : .EXTRA_PREREQS += Cargo.* server/Cargo.toml
-$(CURDIR)/target/$(RUST_PROFILE_DIR)/aedron-patchouli : | aedron-patchouli.sqlite client 
+$(CURDIR)/target/$(RUST_PROFILE_DIR)/aedron-patchouli : | client 
 	$(CARGO) build \
 		--package aedron_patchouli-server \
 		--profile $(RUST_PROFILE)

@@ -8,12 +8,10 @@ publish = { workspace = true }
 
 [features]
 config-toml = ["config/toml"]
-config-json = ["config/json"]
 config-yaml = ["config/yaml"]
 
 default = [
 	"config-toml",
-	"config-json",
 	"config-yaml",
 ]
 
@@ -22,10 +20,15 @@ name = "aedron-patchouli"
 path = "src/main.rs"
 
 [dependencies]
-colored = "^2.0.4"
+colored = "^1.5"
 libloading = "^0.8.0"
-log = { workspace = true }
+mime-db = "^1.7.0"
+r2d2 = "^0.8.10"
+r2d2_sqlite = "^0.22.0"
+rayon = "^1.7.0"
+scheduled-thread-pool = "^0.2.7"
 serde = { workspace = true }
+walkdir = "^2.4.0"
 [dependencies.pluglib]
 workspace = true
 features = ["server"]
@@ -39,11 +42,18 @@ features = ["typed-routing", "async-read-body"]
 [dependencies.config]
 version = "^0.13.3"
 default-features = false
-[dependencies.sqlx]
+[dependencies.log]
 workspace = true
-features = ["runtime-tokio", "json", "macros"]
+features = ["max_level_trace", "release_max_level_info"]
+[dependencies.rusqlite]
+workspace = true
+features = [
+	"column_decltype",
+	"extra_check",
+	"trace",
+]
 [dependencies.time]
-version = "^0.3.26"
+workspace = true
 default-features = false
 features = ["formatting"]
 [dependencies.tokio]

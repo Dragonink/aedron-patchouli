@@ -37,6 +37,7 @@
 	clippy::inefficient_to_string,
 	clippy::macro_use_imports,
 	clippy::manual_let_else,
+	clippy::map_unwrap_or,
 	clippy::match_wildcard_for_single_variants,
 	clippy::missing_errors_doc,
 	clippy::missing_panics_doc,

@@ -19,7 +19,6 @@
 	clippy::format_push_string,
 	clippy::match_on_vec_items,
 	clippy::mem_forget,
-	clippy::missing_docs_in_private_items,
 	clippy::mod_module_files,
 	clippy::option_option,
 	clippy::rest_pat_in_fully_bound_structs,
@@ -37,6 +36,7 @@
 	clippy::inefficient_to_string,
 	clippy::macro_use_imports,
 	clippy::manual_let_else,
+	clippy::map_unwrap_or,
 	clippy::match_wildcard_for_single_variants,
 	clippy::missing_errors_doc,
 	clippy::missing_panics_doc,
@@ -59,7 +59,6 @@
 	keyword_idents,
 	non_ascii_idents,
 	missing_abi,
-	unsafe_code,
 	unsafe_op_in_unsafe_fn,
 	unused_must_use,
 	clippy::exit,
@@ -68,11 +67,14 @@
 #![forbid(clippy::undocumented_unsafe_blocks)]
 
 use pluglib::{
-	ffi::{FfiBoxedSlice, FfiOption, FfiResult, FfiStr},
+	ffi::{new_ffistr, FfiBoxedSlice, FfiOption, FfiResult, FfiStr},
 	media::*,
 };
 use serde::Deserialize;
-use std::process::{Command, Stdio};
+use std::{
+	io,
+	process::{Command, Stdio},
+};
 
 make_plugin! {
 	music "Music";
@@ -80,7 +82,53 @@ make_plugin! {
 	artists "Artists": Text list,
 }
 
-#[allow(clippy::missing_docs_in_private_items)]
+/// Lists the types supported by the plugin
+#[no_mangle]
+pub extern "C" fn supported_types() -> FfiBoxedSlice<FfiStr<'static>> {
+	Command::new("ffprobe")
+		.args(["-v", "quiet", "-formats"])
+		.stdin(Stdio::null())
+		.stderr(Stdio::null())
+		.output()
+		.map(|out| out.stdout)
+		.and_then(|out| {
+			String::from_utf8(out).map_err(|err| io::Error::new(io::ErrorKind::Other, err))
+		})
+		.map(|data| {
+			data.lines()
+				.skip(4)
+				.filter_map(|s| {
+					let format = s.trim().split_ascii_whitespace().nth(1)?;
+					/// Generates match branches for the given formats
+					macro_rules! match_format {
+						($(
+							$format:expr => [$( $mime:literal ),+ $(,)?]
+						),* $(,)?) => {
+							match format {
+								$(
+									$format => Some(vec![$( new_ffistr!($mime) ),+]),
+								)*
+								_ => None,
+							}
+						};
+					}
+					match_format! {
+						"acc" => ["audio/aac"],
+						"adts" => ["audio/aac", "audio/aacp"],
+						"caf" => ["audio/x-caf"],
+						"flac" => ["audio/flac"],
+						"matroska,webm" => ["audio/webm"],
+						"mp3" => ["audio/mp3", "audio/mpeg"],
+						"ogg" => ["audio/ogg"],
+						"wav" => ["audio/wav", "audio/x-wav"],
+					}
+				})
+				.flatten()
+				.collect()
+		})
+		.unwrap_or_default()
+}
+
 /// Root structure of `ffprobe` output
 #[derive(Deserialize)]
 struct FfprobeData<'data> {
@@ -88,7 +136,6 @@ struct FfprobeData<'data> {
 	format: FfprobeDataFormat<'data>,
 }
 
-#[allow(clippy::missing_docs_in_private_items)]
 /// Structure of [`FfprobeData.format`](FfprobeData#structfield.format)
 #[derive(Deserialize)]
 struct FfprobeDataFormat<'data> {
@@ -96,7 +143,6 @@ struct FfprobeDataFormat<'data> {
 	tags: FfprobeDataFormatTags<'data>,
 }
 
-#[allow(clippy::missing_docs_in_private_items)]
 /// Structure of [`FfprobeDataFormat.tags`](FfprobeDataFormat#structfield.tags)
 #[derive(Deserialize)]
 struct FfprobeDataFormatTags<'data> {
@@ -106,7 +152,6 @@ struct FfprobeDataFormatTags<'data> {
 	artists: Option<&'data str>,
 }
 
-#[allow(unsafe_code)]
 /// Extracts the metadata of the given media file
 #[no_mangle]
 pub extern "C" fn extract_metadata(
@@ -125,14 +170,12 @@ pub extern "C" fn extract_metadata(
 		}
 		let data = serde_json::from_slice::<FfprobeData>(&output.stdout).map_err(|_err| ())?;
 
-		Ok([
-			data.format.tags.title.and_then(|s| s.try_into().ok()),
-			None,
-			None,
-		]
-		.into_iter()
-		.map(From::from)
-		.collect())
+		Ok(
+			[data.format.tags.title.and_then(|s| s.try_into().ok()), None]
+				.into_iter()
+				.map(From::from)
+				.collect(),
+		)
 	})()
 	.into()
 }

@@ -1,17 +1,26 @@
 //! Provides the types for media plugins
 
 use crate::{ffi::*, Version};
+#[cfg(feature = "server")]
+use rusqlite::{
+	types::{ToSqlOutput, Value},
+	ToSql,
+};
+#[cfg(feature = "server")]
+use serde::{Serialize, Serializer};
 pub use time::{Date, Time};
 
 /// Version of the media plugin library
 pub const PLUGLIB_VERSION: Version = Version {
 	major: 0,
-	minor: 1,
+	minor: 2,
 	patch: 0,
 };
 
 /// Signature of the `describe_media` function that media plugins must export
 pub type DescribeMedia = extern "C" fn() -> Media;
+/// Signature of the `supported_types` function that media plugins must export
+pub type SupportedTypes = extern "C" fn() -> FfiBoxedSlice<FfiStr<'static>>;
 /// Signature of the `extract_metadata` function that media plugins must export
 pub type ExtractMetadata =
 	extern "C" fn(path: FfiStr<'_>) -> FfiResult<FfiBoxedSlice<FfiOption<MetadataFieldValue>>, ()>;
@@ -46,10 +55,8 @@ pub struct MetadataField {
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MetadataFieldType {
-	/// 32-bit signed integer value
-	Integer,
 	/// 64-bit signed integer value
-	BigInteger,
+	Integer,
 	/// 64-bit floating point value
 	Real,
 	/// String value
@@ -69,14 +76,10 @@ impl MetadataFieldType {
 	#[inline]
 	pub const fn to_sql(&self) -> &'static str {
 		match self {
-			Self::Integer => "INTEGER",
-			Self::BigInteger => "BIGINT",
+			Self::Integer | Self::Boolean => "INTEGER",
 			Self::Real => "REAL",
-			Self::Text => "TEXT",
+			Self::Text | Self::Date | Self::Time => "TEXT",
 			Self::Blob => "BLOB",
-			Self::Boolean => "BOOLEAN",
-			Self::Date => "DATE",
-			Self::Time => "TIME",
 		}
 	}
 }
@@ -85,10 +88,8 @@ impl MetadataFieldType {
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub enum MetadataFieldValue {
-	/// 32-bit signed integer value
-	Integer(i32),
 	/// 64-bit signed integer value
-	BigInteger(i64),
+	Integer(i64),
 	/// 64-bit floating point value
 	Real(f64),
 	/// String value
@@ -104,16 +105,10 @@ pub enum MetadataFieldValue {
 	/// List of values
 	List(FfiBoxedSlice<Self>),
 }
-impl From<i32> for MetadataFieldValue {
-	#[inline]
-	fn from(value: i32) -> Self {
-		Self::Integer(value)
-	}
-}
 impl From<i64> for MetadataFieldValue {
 	#[inline]
 	fn from(value: i64) -> Self {
-		Self::BigInteger(value)
+		Self::Integer(value)
 	}
 }
 impl From<f64> for MetadataFieldValue {
@@ -192,6 +187,68 @@ impl From<FfiBoxedSlice<MetadataFieldValue>> for MetadataFieldValue {
 		Self::List(list)
 	}
 }
+#[cfg(feature = "server")]
+impl From<MetadataFieldValue> for Value {
+	#[inline]
+	fn from(value: MetadataFieldValue) -> Self {
+		match value {
+			MetadataFieldValue::Integer(value) => value.into(),
+			MetadataFieldValue::Real(value) => value.into(),
+			MetadataFieldValue::Text(value) => value.to_str().to_owned().into(),
+			MetadataFieldValue::Blob(value) => value.to_slice().to_vec().into(),
+			MetadataFieldValue::Boolean(value) => value.into(),
+			MetadataFieldValue::Date(value) => FfiDate(value).into(),
+			MetadataFieldValue::Time(value) => value.into(),
+			MetadataFieldValue::List(_list) => unimplemented!(),
+		}
+	}
+}
+#[cfg(feature = "server")]
+impl ToSql for MetadataFieldValue {
+	#[inline]
+	fn to_sql(&self) -> rusqlite::Result<ToSqlOutput<'_>> {
+		match self {
+			Self::Integer(value) => value.to_sql(),
+			Self::Real(value) => value.to_sql(),
+			Self::Text(value) => value.to_sql(),
+			Self::Blob(value) => value.to_sql(),
+			Self::Boolean(value) => value.to_sql(),
+			Self::Date(value) => value.to_sql(),
+			Self::Time(value) => value.to_sql(),
+			Self::List(list) => list.to_sql(),
+		}
+	}
+}
+#[cfg(feature = "server")]
+impl From<MetadataFieldValue> for serde_json::Value {
+	fn from(value: MetadataFieldValue) -> Self {
+		match value {
+			MetadataFieldValue::Integer(value) => value.into(),
+			MetadataFieldValue::Real(value) => value.into(),
+			MetadataFieldValue::Text(value) => value.to_str().to_owned().into(),
+			MetadataFieldValue::Blob(value) => value.to_slice().to_vec().into(),
+			MetadataFieldValue::Boolean(value) => value.into(),
+			MetadataFieldValue::Date(value) => FfiDate(value).into(),
+			MetadataFieldValue::Time(value) => value.into(),
+			MetadataFieldValue::List(_list) => unimplemented!(),
+		}
+	}
+}
+#[cfg(feature = "server")]
+impl Serialize for MetadataFieldValue {
+	fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+		match self {
+			Self::Integer(value) => value.serialize(serializer),
+			Self::Real(value) => value.serialize(serializer),
+			Self::Text(value) => value.serialize(serializer),
+			Self::Blob(value) => value.serialize(serializer),
+			Self::Boolean(value) => value.serialize(serializer),
+			Self::Date(value) => value.serialize(serializer),
+			Self::Time(value) => value.serialize(serializer),
+			Self::List(list) => list.serialize(serializer),
+		}
+	}
+}
 
 #[doc(hidden)]
 #[macro_export]
@@ -236,9 +293,9 @@ macro_rules! make_plugin {
 			$crate::media::Media {
 				name: $crate::ffi::new_ffistr!($media_name),
 				ident: $crate::ffi::new_ffistr!(::core::stringify!($media_ident)),
-				fields: [
+				fields: $crate::ffi::FfiBoxedSlice::from(Box::from([
 					$( $crate::media::new_metadata_field!($field_ident $field_name : $( $field_type )+) ),*
-				].into_iter().collect(),
+				].as_slice())),
 			}
 		}
 	};
@@ -259,6 +316,8 @@ macro_rules! assert_plugin {
 			const _ASSERT_PLUGIN_VERSION: $crate::PluginVersion = plugin_version;
 
 			const _ASSERT_DESCRIBE_MEDIA: $crate::media::DescribeMedia = describe_media;
+
+			const _ASSERT_SUPPORTED_TYPES: $crate::media::SupportedTypes = supported_types;
 
 			const _ASSERT_EXTRACT_METADATA: $crate::media::ExtractMetadata = extract_metadata;
 		}

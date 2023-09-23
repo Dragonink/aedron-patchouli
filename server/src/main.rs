@@ -37,6 +37,7 @@
 	clippy::inefficient_to_string,
 	clippy::macro_use_imports,
 	clippy::manual_let_else,
+	clippy::map_unwrap_or,
 	clippy::match_wildcard_for_single_variants,
 	clippy::missing_errors_doc,
 	clippy::missing_panics_doc,
@@ -70,8 +71,9 @@
 use axum::{extract::FromRef, Server};
 use colored::Colorize;
 use plugins::PluginStore;
-use sqlx::SqlitePool;
-use std::{error::Error, net::SocketAddr, sync::Arc};
+use r2d2::Pool;
+use r2d2_sqlite::SqliteConnectionManager;
+use std::{error::Error, fmt::Display, net::SocketAddr, sync::Arc};
 
 /// Name of the server executable
 const EXE_NAME: &str = env!("CARGO_BIN_NAME");
@@ -82,6 +84,9 @@ mod http;
 mod plugins;
 
 use config::Config;
+
+/// [`log`] target used to color the message according to the level
+const LOG_HIGHLIGHT: &str = "_HIGHLIGHT";
 
 /// Sets up the application's logger
 ///
@@ -94,10 +99,8 @@ use config::Config;
 ///
 /// Also, the [panic hook](std::panic::set_hook) is set to output panic info through the logger.
 fn setup_logger() -> Result<(), fern::InitError> {
-	use fern::{
-		colors::{Color, ColoredLevelConfig},
-		Dispatch, InitError,
-	};
+	use colored::Color;
+	use fern::{colors::ColoredLevelConfig, Dispatch, InitError};
 	use log::LevelFilter;
 	use time::{
 		format_description::well_known::{
@@ -108,7 +111,7 @@ fn setup_logger() -> Result<(), fern::InitError> {
 	};
 
 	/// [`log`] target used by panics
-	const PANIC_TARGET: &str = "PANIC";
+	const LOG_PANIC: &str = "_PANIC";
 	/// Format of the timestamps
 	const TIME_FORMAT: EncodedConfig = Config::DEFAULT
 		.set_time_precision(TimePrecision::Second {
@@ -122,7 +125,7 @@ fn setup_logger() -> Result<(), fern::InitError> {
 		.info(Color::Cyan);
 
 	let mut logger = Dispatch::new()
-		.level(LevelFilter::Trace)
+		.level(log::STATIC_MAX_LEVEL)
 		.level_for("tracing::span", LevelFilter::Off)
 		.level_for("hyper", LevelFilter::Info)
 		.level_for("tower_http::trace", LevelFilter::Off)
@@ -134,32 +137,29 @@ fn setup_logger() -> Result<(), fern::InitError> {
 						unreachable!()
 					};
 					let target = record.target();
+					let module = record.module_path().unwrap_or_default();
 
-					let message = message.to_string();
-					let message = if target == PANIC_TARGET {
-						message.bold().red()
+					let level_color = colors.get_color(&record.level());
+					let highlight = target == LOG_HIGHLIGHT || target == LOG_PANIC;
+
+					let level: Box<dyn Display> = if target == LOG_PANIC {
+						Box::new("FATAL".bold().color(colors.error))
 					} else {
-						message.normal()
+						Box::new(colors.color(record.level()))
 					};
-
-					let target = target
-						.strip_prefix(env!("CARGO_CRATE_NAME"))
-						.map(|target| EXE_NAME.to_owned() + target)
-						.unwrap_or_else(|| {
-							if target == PANIC_TARGET {
-								EXE_NAME
-							} else {
-								target
-							}
-							.to_owned()
-						})
-						.dimmed();
-
+					let target = if !highlight && target != module {
+						format!("<{target}>")
+					} else {
+						format!("[{module}]")
+					}
+					.dimmed();
 					out.finish(format_args!(
-						"{timestamp} {level:5} {pre_target}{target}{post_target} {message}",
-						level = colors.color(record.level()),
-						pre_target = "[".dimmed(),
-						post_target = "]".dimmed(),
+						"{timestamp} {level:5} {target} \x1B[1;{color}m{message}\x1B[0m",
+						color = if highlight {
+							level_color.to_fg_str()
+						} else {
+							"0"
+						},
 					));
 				})
 				.chain(std::io::stdout()),
@@ -197,12 +197,12 @@ fn setup_logger() -> Result<(), fern::InitError> {
 					.downcast_ref::<String>()
 					.map(|s| s.as_str())
 			})
-			.unwrap_or("of unknown reasons");
+			.unwrap_or("why not?");
 
 		if let Some(location) = panic_info.location() {
-			log::error!(target: PANIC_TARGET, "Thread '{thread}' panicked at `{}:{}:{}` because {message}", location.file(), location.line(), location.column());
+			log::error!(target: LOG_PANIC, "Thread '{thread}' panicked at `{}:{}:{}` because {message}", location.file(), location.line(), location.column());
 		} else {
-			log::error!(target: PANIC_TARGET, "Thread '{thread}' panicked because {message}");
+			log::error!(target: LOG_PANIC, "Thread '{thread}' panicked because {message}");
 		}
 	}));
 
@@ -215,7 +215,7 @@ struct AppState {
 	/// Configuration of the server
 	config: Arc<Config>,
 	/// Pool of connections to the database
-	db_pool: SqlitePool,
+	db_pool: Pool<SqliteConnectionManager>,
 	/// Stores all plugins
 	plugins: Arc<PluginStore>,
 }
@@ -223,6 +223,7 @@ struct AppState {
 #[tokio::main]
 async fn main() {
 	/// Inner [`main`] function used to [`Display`] the returned error
+	#[inline]
 	async fn _main() -> Result<(), Box<dyn Error>> {
 		setup_logger()?;
 
@@ -230,10 +231,11 @@ async fn main() {
 		log::trace!("{config:?}");
 		let addr = SocketAddr::new(config.addr, config.port);
 
-		let db_pool = db::init_database().await?;
+		let db_pool = db::init()?;
 
 		let plugins = PluginStore::load_plugins();
-		plugins.update_database(db_pool.acquire().await?).await?;
+		plugins.update_database(&db_pool)?;
+		plugins.load_media(&db_pool, &config.media);
 
 		let state = AppState {
 			config: Arc::new(config),
@@ -241,7 +243,7 @@ async fn main() {
 			plugins: Arc::new(plugins),
 		};
 
-		log::info!("{}", format!("Starting the server on {addr}").bold().cyan());
+		log::info!(target: LOG_HIGHLIGHT, "Starting the server on {addr}");
 		Server::bind(&addr)
 			.serve(
 				http::new_router()
