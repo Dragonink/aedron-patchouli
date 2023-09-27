@@ -1,5 +1,7 @@
 //! Provides the server's HTTP features
 
+mod assets;
+
 use axum::{
 	extract::ConnectInfo,
 	http::{Request, Response},
@@ -19,8 +21,6 @@ use tower_http::{
 	trace::{DefaultMakeSpan, OnFailure, OnRequest, OnResponse, TraceLayer},
 };
 use tracing::Span;
-
-mod assets;
 
 /// Constructs a new configured [`Router`]
 #[inline]

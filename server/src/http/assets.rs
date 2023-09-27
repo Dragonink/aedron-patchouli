@@ -12,6 +12,7 @@ use axum_extra::{
 };
 use tokio::fs::File;
 
+/// `GET /*`
 /// [Handler](axum::handler) that returns the requested file from `client/assets/`
 #[axum::debug_handler]
 async fn get_asset(Path(path): Path<String>) -> Result<Response, (StatusCode, String)> {

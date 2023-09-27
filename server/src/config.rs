@@ -27,6 +27,9 @@ pub(super) struct Config {
 	/// Port to bind the server to
 	#[serde(default = "Config::default_port")]
 	pub(super) port: u16,
+	/// Configuration of the TLS
+	#[serde(default)]
+	pub(super) tls: TlsConfig,
 	/// Configuration of media plugins
 	#[serde(default)]
 	pub(super) media: HashMap<String, MediaConfig>,
@@ -50,7 +53,41 @@ impl Default for Config {
 		Self {
 			addr: Self::default_addr(),
 			port: Self::default_port(),
+			tls: Default::default(),
 			media: Default::default(),
+		}
+	}
+}
+
+/// Configuration of the TLS
+#[derive(Debug, Clone, Deserialize)]
+pub(super) struct TlsConfig {
+	/// TLS certificate file
+	#[serde(default = "TlsConfig::default_certificate")]
+	pub(super) certificate: PathBuf,
+	/// TLS private key file
+	#[serde(default = "TlsConfig::default_key")]
+	pub(super) key: PathBuf,
+}
+impl TlsConfig {
+	/// Default value for [`certificate`](Self#structfield.certificate)
+	#[inline]
+	fn default_certificate() -> PathBuf {
+		PathBuf::from("certificate.crt")
+	}
+
+	/// Default value for [`key`](Self#structfield.key)
+	#[inline]
+	fn default_key() -> PathBuf {
+		PathBuf::from("private.key")
+	}
+}
+impl Default for TlsConfig {
+	#[inline]
+	fn default() -> Self {
+		Self {
+			certificate: Self::default_certificate(),
+			key: Self::default_key(),
 		}
 	}
 }

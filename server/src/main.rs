@@ -68,22 +68,28 @@
 )]
 #![forbid(clippy::undocumented_unsafe_blocks)]
 
-use axum::{extract::FromRef, Server};
-use colored::Colorize;
-use plugins::PluginStore;
-use r2d2::Pool;
-use r2d2_sqlite::SqliteConnectionManager;
-use std::{error::Error, fmt::Display, net::SocketAddr, sync::Arc};
-
-/// Name of the server executable
-const EXE_NAME: &str = env!("CARGO_BIN_NAME");
-
 mod config;
 mod db;
 mod http;
 mod plugins;
+mod tls;
 
+use crate::tls::TlsAddrIncoming;
+use axum::{
+	extract::{connect_info::Connected, FromRef},
+	Server,
+};
+use colored::Colorize;
 use config::Config;
+use hyper::server::{accept::Accept, conn::AddrIncoming};
+use plugins::PluginStore;
+use r2d2::Pool;
+use r2d2_sqlite::SqliteConnectionManager;
+use std::{error::Error, fmt::Display, io, net::SocketAddr, sync::Arc};
+use tokio::io::{AsyncRead, AsyncWrite};
+
+/// Name of the server executable
+const EXE_NAME: &str = env!("CARGO_BIN_NAME");
 
 /// [`log`] target used to color the message according to the level
 const LOG_HIGHLIGHT: &str = "_HIGHLIGHT";
@@ -220,6 +226,23 @@ struct AppState {
 	plugins: Arc<PluginStore>,
 }
 
+/// Constructs and runs a [`Server`]
+async fn serve<I: Accept>(incoming: I, state: AppState) -> hyper::Result<()>
+where
+	I::Conn: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+	I::Error: Error + Send + Sync + 'static,
+	for<'conn> SocketAddr: Connected<&'conn I::Conn>,
+{
+	Server::builder(incoming)
+		.serve(
+			http::new_router()
+				.with_state(state)
+				.into_make_service_with_connect_info::<SocketAddr>(),
+		)
+		.with_graceful_shutdown(graceful_shutdown())
+		.await
+}
+
 #[tokio::main]
 async fn main() {
 	/// Inner [`main`] function used to [`Display`] the returned error
@@ -230,6 +253,13 @@ async fn main() {
 		let config = config::build_config()?;
 		log::trace!("{config:?}");
 		let addr = SocketAddr::new(config.addr, config.port);
+		let identity = match tls::read_identity(&config.tls.certificate, &config.tls.key) {
+			Ok(identity) => Some(identity),
+			Err(ref err) if err.kind() == io::ErrorKind::NotFound => None,
+			Err(err) => {
+				return Err(err.into());
+			}
+		};
 
 		let db_pool = db::init()?;
 
@@ -244,14 +274,11 @@ async fn main() {
 		};
 
 		log::info!(target: LOG_HIGHLIGHT, "Starting the server on {addr}");
-		Server::bind(&addr)
-			.serve(
-				http::new_router()
-					.with_state(state)
-					.into_make_service_with_connect_info::<SocketAddr>(),
-			)
-			.with_graceful_shutdown(graceful_shutdown())
-			.await?;
+		if let Some(identity) = identity {
+			serve(TlsAddrIncoming::bind(&addr, identity)?, state).await
+		} else {
+			serve(AddrIncoming::bind(&addr)?, state).await
+		}?;
 
 		Ok(())
 	}
