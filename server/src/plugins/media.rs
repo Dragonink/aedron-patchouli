@@ -107,7 +107,7 @@ impl MediaPlugin {
 	}
 
 	/// Returns the identifier of the database table
-	fn table_ident(&self) -> String {
+	pub(crate) fn table_ident(&self) -> String {
 		format!("media_{}", self.media.ident)
 	}
 

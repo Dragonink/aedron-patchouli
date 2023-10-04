@@ -1,13 +1,16 @@
 //! Provides the server's HTTP features
 
+mod api;
 mod assets;
 
+use crate::AppState;
 use axum::{
 	extract::ConnectInfo,
 	http::{Request, Response},
 	middleware::{self, Next},
 	response, Router,
 };
+use hyper::body::HttpBody;
 use std::{
 	fmt::{self, Display, Formatter},
 	net::SocketAddr,
@@ -16,7 +19,7 @@ use std::{
 use tower::ServiceBuilder;
 use tower_http::{
 	classify::{ServerErrorsAsFailures, SharedClassifier},
-	compression::CompressionLayer,
+	compression::{CompressionLayer, DefaultPredicate, Predicate},
 	normalize_path::NormalizePathLayer,
 	trace::{DefaultMakeSpan, OnFailure, OnRequest, OnResponse, TraceLayer},
 };
@@ -24,11 +27,9 @@ use tracing::Span;
 
 /// Constructs a new configured [`Router`]
 #[inline]
-pub(super) fn new_router<S>() -> Router<S>
-where
-	S: Clone + Send + Sync + 'static,
-{
-	Router::<S>::new()
+pub(super) fn new_router() -> Router<AppState> {
+	Router::new()
+		.nest("/api", api::new_router())
 		.nest("/assets", assets::new_nested_router())
 		.merge(assets::new_merged_router())
 		.layer(
@@ -36,7 +37,10 @@ where
 			ServiceBuilder::new()
 				.layer(NormalizePathLayer::trim_trailing_slash())
 				.layer(CustomTrace::new_layer())
-				.layer(CompressionLayer::new())
+				.layer(
+					CompressionLayer::new()
+						.compress_when(DefaultPredicate::new().and(ProfilePredicate)),
+				)
 				.layer(middleware::from_fn(req_to_res_extensions)),
 			// NOTE: Responses pass through layers bottom up (↑)
 		)
@@ -132,5 +136,15 @@ impl Display for FmtDuration {
 		} else {
 			write!(f, "{duration}ms")
 		}
+	}
+}
+
+/// [Compression predicate](Predicate) according to the compilation profile
+#[derive(Debug, Default, Clone, Copy)]
+struct ProfilePredicate;
+impl Predicate for ProfilePredicate {
+	#[inline]
+	fn should_compress<B: HttpBody>(&self, _response: &Response<B>) -> bool {
+		!cfg!(debug_assertions)
 	}
 }

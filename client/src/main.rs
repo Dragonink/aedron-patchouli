@@ -60,34 +60,78 @@
 	keyword_idents,
 	non_ascii_idents,
 	missing_abi,
+	unsafe_code,
 	unsafe_op_in_unsafe_fn,
 	unused_must_use,
 	clippy::exit,
 	clippy::lossy_float_literal,
-	clippy::undocumented_unsafe_blocks,
 )]
-#![forbid(unsafe_code)]
+#![forbid(clippy::undocumented_unsafe_blocks)]
 
-use kobold::prelude::*;
-use log::Level;
+mod components;
+
+use components::App;
+#[cfg(target_arch = "wasm32")]
+use lol_alloc::{AssumeSingleThreaded, FreeListAllocator};
 use wasm_bindgen::prelude::*;
 
-#[allow(missing_docs, clippy::missing_errors_doc, clippy::missing_panics_doc)]
+#[cfg(target_arch = "wasm32")]
+#[allow(unsafe_code)]
+#[doc(hidden)]
+#[global_allocator]
+static ALLOC: AssumeSingleThreaded<FreeListAllocator> =
+	// SAFETY: This application is single-threaded.
+	unsafe { AssumeSingleThreaded::new(FreeListAllocator::new()) };
+
+/// Sets up the application's logger
+///
+/// The [panic hook](std::panic::set_hook) is set to output panic info through the logger.
+fn setup_logger() -> Result<(), log::SetLoggerError> {
+	console_log::init_with_level(
+		log::STATIC_MAX_LEVEL
+			.to_level()
+			.unwrap_or_else(|| unreachable!()),
+	)?;
+
+	// Make panics use the installed logger
+	std::panic::set_hook(Box::new(move |panic_info| {
+		let message = panic_info
+			.payload()
+			.downcast_ref::<&str>()
+			.copied()
+			.or_else(|| {
+				panic_info
+					.payload()
+					.downcast_ref::<String>()
+					.map(|s| s.as_str())
+			})
+			.unwrap_or(r"¯\_(ツ)_/¯");
+
+		if let Some(location) = panic_info.location() {
+			log::error!(
+				"Application panicked at {}:{}:{} because {message}",
+				location.file(),
+				location.line(),
+				location.column()
+			);
+		} else {
+			log::error!("Application panicked because {message}");
+		}
+
+		if let Some(window) = web_sys::window() {
+			_ = window.alert_with_message(
+				"The application crashed!\nPlease report the error message printed in the console.",
+			);
+		}
+	}));
+
+	Ok(())
+}
+
+#[allow(missing_docs, clippy::missing_panics_doc)]
 #[wasm_bindgen(start)]
 pub fn main() {
-	console_log::init_with_level({
-		#[cfg(debug_assertions)]
-		{
-			Level::Trace
-		}
-		#[cfg(not(debug_assertions))]
-		{
-			Level::Info
-		}
-	})
-	.unwrap();
+	setup_logger().unwrap();
 
-	kobold::start(view! {
-		<h1>"Aedron Patchouli"</h1>
-	});
+	leptos::mount_to_body(|| leptos::view! { <App /> });
 }

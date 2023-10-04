@@ -14,7 +14,21 @@ crate-type = ["cdylib"]
 [dependencies]
 console_log = "^1.0.0"
 log = { workspace = true }
+lol_alloc = "^0.4.0"
+serde_json = { workspace = true }
 wasm-bindgen = "^0.2.87"
-[dependencies.kobold]
-version = "^0.9.1"
-features = ["rlsf"]
+[dependencies.gloo-net]
+version = "^0.4.0"
+default-features = false
+features = ["http", "json"]
+[dependencies.leptos]
+git = "https://github.com/leptos-rs/leptos"
+default-features = false
+features = ["csr", "template_macro"]
+[dependencies.leptos_router]
+git = "https://github.com/leptos-rs/leptos"
+default-features = false
+features = ["csr"]
+[dependencies.web-sys]
+version = "^0.3.64"
+features = ["Window"]

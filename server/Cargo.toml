@@ -22,6 +22,7 @@ path = "src/main.rs"
 [dependencies]
 colored = "^1.5"
 libloading = "^0.8.0"
+log = { workspace = true }
 mime-db = "^1.7.0"
 tokio-native-tls = "^0.3.1"
 r2d2 = "^0.8.10"
@@ -29,6 +30,7 @@ r2d2_sqlite = "^0.22.0"
 rayon = "^1.7.0"
 scheduled-thread-pool = "^0.2.7"
 serde = { workspace = true }
+serde_json = { workspace = true }
 walkdir = "^2.4.0"
 [dependencies.pluglib]
 workspace = true
@@ -36,25 +38,31 @@ features = ["server"]
 [dependencies.axum]
 version = "^0.6.20"
 default-features = false
-features = ["tokio", "http1", "http2", "tower-log", "matched-path", "macros"]
+features = [
+	"tokio",
+	"http1",
+	"http2",
+	"tower-log",
+	"json",
+	"matched-path",
+	"macros",
+]
 [dependencies.axum-extra]
 version = "^0.7.7"
-features = ["typed-routing", "async-read-body"]
+features = ["async-read-body"]
 [dependencies.config]
 version = "^0.13.3"
 default-features = false
 [dependencies.hyper]
 version = "^0.14.27"
 features = ["server"]
-[dependencies.log]
-workspace = true
-features = ["max_level_trace", "release_max_level_info"]
 [dependencies.rusqlite]
 workspace = true
 features = [
 	"column_decltype",
 	"extra_check",
 	"trace",
+	"serde_json",
 ]
 [dependencies.time]
 workspace = true

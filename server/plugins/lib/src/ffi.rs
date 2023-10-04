@@ -16,7 +16,9 @@ use std::{
 	ops::{Deref, DerefMut},
 	slice::{Iter, IterMut},
 };
-use time::{format_description::well_known::Iso8601, Date, Time};
+#[cfg(feature = "server")]
+use time::format_description::well_known::Iso8601;
+use time::{Date, Time};
 
 /// FFI-safe [`slice`]
 #[repr(C)]

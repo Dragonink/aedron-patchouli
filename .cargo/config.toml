@@ -1,7 +1,7 @@
 [target.wasm32-unknown-unknown]
 rustflags = [
 	# Enable all implemented features (see https://webassembly.org/roadmap)
-	"-Ctarget-feature=-atomics", # NOTE: `rlsf` does not support atomics
+	"-Ctarget-feature=-atomics", # NOTE: We don't need multiple threads
 	"-Ctarget-feature=+bulk-memory",
 	# "-Ctarget-feature=+exception-handling", "-Cllvm-args=-wasm-enable-eh", # FIXME: Does not work with `std` yet (see https://github.com/rust-lang/rust/pull/111322)
 	"-Ctarget-feature=-multivalue", # FIXME: Does not work for now (see https://github.com/rust-lang/rust/issues/73755)

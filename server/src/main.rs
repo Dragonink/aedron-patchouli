@@ -203,10 +203,10 @@ fn setup_logger() -> Result<(), fern::InitError> {
 					.downcast_ref::<String>()
 					.map(|s| s.as_str())
 			})
-			.unwrap_or("why not?");
+			.unwrap_or(r"¯\_(ツ)_/¯");
 
 		if let Some(location) = panic_info.location() {
-			log::error!(target: LOG_PANIC, "Thread '{thread}' panicked at `{}:{}:{}` because {message}", location.file(), location.line(), location.column());
+			log::error!(target: LOG_PANIC, "Thread '{thread}' panicked at {}:{}:{} because {message}", location.file(), location.line(), location.column());
 		} else {
 			log::error!(target: LOG_PANIC, "Thread '{thread}' panicked because {message}");
 		}

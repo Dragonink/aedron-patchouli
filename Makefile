@@ -2,7 +2,6 @@ MAKEFLAGS += --no-builtin-rules
 
 CARGO ?= cargo
 WASM_BINDGEN ?= wasm-bindgen
-SQLITE ?= sqlite3
 
 RUST_PROFILE ?= dev
 WASMBGFLAGS += --remove-producers-section
@@ -18,22 +17,20 @@ endif
 WASM_TARGET := wasm32-unknown-unknown
 
 
-FORCE :
-Cargo.lock : FORCE
-	$(CARGO) update
+client/assets/out target/$(RUST_PROFILE_DIR)/plugins :
+	mkdir --parents $@
 
--include target/$(WASM_TARGET)/$(RUST_PROFILE_DIR)/aedron_patchouli_client.d
-$(CURDIR)/target/$(WASM_TARGET)/$(RUST_PROFILE_DIR)/aedron_patchouli_client.wasm : .EXTRA_PREREQS += Cargo.* client/Cargo.toml
-$(CURDIR)/target/$(WASM_TARGET)/$(RUST_PROFILE_DIR)/aedron_patchouli_client.wasm :
+-include target/$(WASM_TARGET)/wasm-$(RUST_PROFILE)/aedron_patchouli_client.d
+OUT_RAW_WASM := $(CURDIR)/target/$(WASM_TARGET)/wasm-$(RUST_PROFILE)/aedron_patchouli_client.wasm 
+$(OUT_RAW_WASM) : .EXTRA_PREREQS += Cargo.* client/Cargo.toml
+$(OUT_RAW_WASM) :
 	$(CARGO) build \
 		--package aedron_patchouli-client \
 		--target $(WASM_TARGET) \
-		--profile $(RUST_PROFILE)
+		--profile wasm-$(RUST_PROFILE)
 
-client/assets/out :
-	mkdir --parents $@
-
-$(addprefix client/assets/out/main,_bg.wasm .js) &: $(CURDIR)/target/$(WASM_TARGET)/$(RUST_PROFILE_DIR)/aedron_patchouli_client.wasm | client/assets/out
+OUT_CLIENT := $(addprefix client/assets/out/main,_bg.wasm .js) 
+$(OUT_CLIENT) &: $(OUT_RAW_WASM) | client/assets/out
 	$(WASM_BINDGEN) \
 		--target web \
 		--reference-types \
@@ -45,34 +42,32 @@ $(addprefix client/assets/out/main,_bg.wasm .js) &: $(CURDIR)/target/$(WASM_TARG
 		--out-name main \
 		$(WASMBGFLAGS) \
 		$<
-	@sed -i '/imports\.wbg\.__wbg_appendChild_[0-9a-f]\+/s/\? document\.body\.appendChild :/? node => document.body.appendChild(node) :/' $(@D)/main.js # NOTE: Fix for `Node.appendChild` error
 
 .PHONY : client
-client : $(addprefix client/assets/out/main,_bg.wasm .js)
+client : $(OUT_CLIENT)
 
 -include target/$(RUST_PROFILE_DIR)/aedron-patchouli.d
-$(CURDIR)/target/$(RUST_PROFILE_DIR)/aedron-patchouli : .EXTRA_PREREQS += Cargo.* server/Cargo.toml
-$(CURDIR)/target/$(RUST_PROFILE_DIR)/aedron-patchouli : | client 
+OUT_SERVER := $(CURDIR)/target/$(RUST_PROFILE_DIR)/aedron-patchouli 
+$(OUT_SERVER) : .EXTRA_PREREQS += Cargo.* server/Cargo.toml
+$(OUT_SERVER) : client 
 	$(CARGO) build \
 		--package aedron_patchouli-server \
 		--profile $(RUST_PROFILE)
 
 .PHONY : server
-server : $(CURDIR)/target/$(RUST_PROFILE_DIR)/aedron-patchouli
-
-target/$(RUST_PROFILE_DIR)/plugins :
-	mkdir --parents $@
+server : $(OUT_SERVER)
 
 -include target/$(RUST_PROFILE_DIR)/libaedron_patchouli_pluglib.d
 
 -include target/$(RUST_PROFILE_DIR)/libaedron_patchouli_plugin_media_music.d
-$(CURDIR)/target/$(RUST_PROFILE_DIR)/libaedron_patchouli_plugin_media_music.so : .EXTRA_PREREQS := Cargo.* server/plugins/lib/Cargo.* server/plugins/media-music/Cargo.*
-$(CURDIR)/target/$(RUST_PROFILE_DIR)/libaedron_patchouli_plugin_media_music.so :
+OUT_MUSIC_PLUGIN := $(CURDIR)/target/$(RUST_PROFILE_DIR)/libaedron_patchouli_plugin_media_music.so
+$(OUT_MUSIC_PLUGIN) : .EXTRA_PREREQS := Cargo.* server/plugins/lib/Cargo.* server/plugins/media-music/Cargo.*
+$(OUT_MUSIC_PLUGIN) :
 	$(CARGO) build \
 		--package aedron_patchouli-plugin-media-music \
 		--profile $(RUST_PROFILE)
 
-target/$(RUST_PROFILE_DIR)/plugins/music.media : $(CURDIR)/target/$(RUST_PROFILE_DIR)/libaedron_patchouli_plugin_media_music.so | target/$(RUST_PROFILE_DIR)/plugins
+target/$(RUST_PROFILE_DIR)/plugins/%.media : $(CURDIR)/target/$(RUST_PROFILE_DIR)/libaedron_patchouli_plugin_media_%.so | target/$(RUST_PROFILE_DIR)/plugins
 	ln --force --symbolic --relative $< $@
 
 .PHONY : plugins
@@ -85,7 +80,7 @@ all : client server plugins
 .PHONY : run
 .SILENT : run
 run : all
-	target/$(RUST_PROFILE_DIR)/aedron-patchouli
+	$(OUT_SERVER)
 
 .PHONY : clean
 .SILENT : clean

@@ -1,5 +1,6 @@
 //! Provides routes for the server's assets
 
+use crate::AppState;
 use axum::{
 	extract::Path,
 	http::StatusCode,
@@ -14,7 +15,7 @@ use tokio::fs::File;
 
 /// `GET /*`
 /// [Handler](axum::handler) that returns the requested file from `client/assets/`
-#[axum::debug_handler]
+#[axum::debug_handler(state = AppState)]
 async fn get_asset(Path(path): Path<String>) -> Result<Response, (StatusCode, String)> {
 	let assets_dir = std::path::Path::new("client/assets");
 	let file = match File::open(assets_dir.join(&path)).await {
@@ -48,23 +49,18 @@ async fn get_asset(Path(path): Path<String>) -> Result<Response, (StatusCode, St
 ///
 /// This router should be [`nest`ed](Router::nest).
 #[inline]
-pub(super) fn new_nested_router<S>() -> Router<S>
-where
-	S: Clone + Send + Sync + 'static,
-{
-	Router::<S>::new().route("/*path", routing::get(get_asset))
+pub(super) fn new_nested_router() -> Router<AppState> {
+	Router::new().route("/*path", routing::get(get_asset))
 }
 
 /// Constructs a new configured [`Router`]
 ///
 /// This router should be [`merge`d](Router::merge).
 #[inline]
-pub(super) fn new_merged_router<S>() -> Router<S>
-where
-	S: Clone + Send + Sync + 'static,
-{
-	Router::<S>::new().route(
-		"/",
-		routing::get(|| get_asset(Path("index.html".to_owned()))),
-	)
+pub(super) fn new_merged_router() -> Router<AppState> {
+	let index_handler = || get_asset(Path("index.html".to_owned()));
+
+	Router::new()
+		.route("/", routing::get(index_handler))
+		.route("/*any", routing::get(index_handler))
 }
