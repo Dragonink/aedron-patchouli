@@ -282,7 +282,7 @@ impl MediaPlugin {
 		)?;
 		log::info!(
 			"Added {added_count}, kept {}, removed {removed_count} {} media in {:.3}s",
-			cached_count - added_count - removed_count,
+			cached_count - removed_count,
 			self.media.name,
 			start.elapsed().as_secs_f32(),
 		);

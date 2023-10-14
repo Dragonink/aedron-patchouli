@@ -1,6 +1,5 @@
 //! Provides FFI-safe abstractions
 
-use core::ffi::FromBytesUntilNulError;
 #[cfg(feature = "server")]
 use rusqlite::{
 	types::{ToSqlOutput, Value, ValueRef},
@@ -10,7 +9,7 @@ use rusqlite::{
 use serde::{Serialize, Serializer};
 use std::{
 	cmp::Ordering,
-	ffi::{c_char, CStr, CString, NulError},
+	ffi::{c_char, CStr, CString, FromBytesUntilNulError, NulError},
 	fmt::{self, Debug, Display, Formatter},
 	marker::PhantomData,
 	ops::{Deref, DerefMut},

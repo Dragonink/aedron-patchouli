@@ -10,7 +10,9 @@ use axum::{
 	middleware::{self, Next},
 	response, Router,
 };
+use client::leptos;
 use hyper::body::HttpBody;
+use leptos_axum::LeptosRoutes;
 use std::{
 	fmt::{self, Display, Formatter},
 	net::SocketAddr,
@@ -26,12 +28,23 @@ use tower_http::{
 use tracing::Span;
 
 /// Constructs a new configured [`Router`]
-#[inline]
-pub(super) fn new_router() -> Router<AppState> {
+pub(super) fn new_router(state: &AppState) -> Router<AppState> {
+	let request_client = state.request_client.clone();
+
 	Router::new()
 		.nest("/api", api::new_router())
-		.nest("/assets", assets::new_nested_router())
-		.merge(assets::new_merged_router())
+		.nest(
+			&format!("/{}", state.leptos_options.site_pkg_dir),
+			assets::new_router(),
+		)
+		.leptos_routes_with_context(
+			state,
+			leptos_axum::generate_route_list(client::App),
+			move || {
+				leptos::provide_context(request_client.clone());
+			},
+			client::App,
+		)
 		.layer(
 			// NOTE: Requests pass through layers top down (↓)
 			ServiceBuilder::new()
@@ -100,14 +113,14 @@ impl<B> OnRequest<B> for CustomTrace {
 	fn on_request(&mut self, request: &Request<B>, span: &Span) {
 		let client = get_client!(request);
 
-		tracing::info!(parent: span, "{client} ---> {:8?} {} {}", request.version(), request.method(), request.uri());
+		tracing::trace!(parent: span, "{client} ---> {:8?} {} {}", request.version(), request.method(), request.uri());
 	}
 }
 impl<B> OnResponse<B> for CustomTrace {
 	fn on_response(self, response: &Response<B>, latency: Duration, span: &Span) {
 		let client = get_client!(response);
 
-		tracing::debug!(parent: span, "{client} <--- {} (in {})", response.status(), FmtDuration(latency));
+		tracing::trace!(parent: span, "{client} <--- {} (in {})", response.status(), FmtDuration(latency));
 	}
 }
 impl<T> OnFailure<T> for CustomTrace
@@ -130,11 +143,13 @@ impl From<Duration> for FmtDuration {
 }
 impl Display for FmtDuration {
 	fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-		let duration = self.0.as_millis();
-		if duration >= 1000 {
+		let duration = self.0.as_micros();
+		if duration >= 1_000_000 {
 			write!(f, "{:.3}s", self.0.as_secs_f32())
+		} else if duration >= 1_000 {
+			write!(f, "{}ms", self.0.as_millis())
 		} else {
-			write!(f, "{duration}ms")
+			write!(f, "{duration}μs")
 		}
 	}
 }

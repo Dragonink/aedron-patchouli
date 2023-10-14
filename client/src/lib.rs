@@ -26,7 +26,6 @@
 	clippy::str_to_string,
 	clippy::verbose_file_reads,
 	// Suspicious
-	noop_method_call,
 	meta_variable_misuse,
 	// Pedantic
 	unused_qualifications,
@@ -42,6 +41,7 @@
 	clippy::missing_errors_doc,
 	clippy::missing_panics_doc,
 	clippy::needless_continue,
+	clippy::needless_raw_string_hashes,
 	clippy::semicolon_if_nothing_returned,
 	clippy::unnested_or_patterns,
 	clippy::unused_self,
@@ -51,6 +51,8 @@
 	clippy::empty_line_after_outer_attr,
 	clippy::imprecise_flops,
 	clippy::missing_const_for_fn,
+	clippy::needless_pass_by_ref_mut,
+	clippy::readonly_write_lock,
 	clippy::suboptimal_flops,
 )]
 #![deny(
@@ -68,14 +70,24 @@
 )]
 #![forbid(clippy::undocumented_unsafe_blocks)]
 
-mod components;
+#[cfg(all(feature = "hydrate", feature = "ssr"))]
+compile_error!("The `hydrate` and `ssr` features are mutually exclusive");
 
-use components::App;
-#[cfg(target_arch = "wasm32")]
+pub mod components;
+
+pub use components::*;
+pub use leptos;
+#[cfg(all(target_arch = "wasm32", feature = "hydrate"))]
 use lol_alloc::{AssumeSingleThreaded, FreeListAllocator};
+pub use reqwest;
+use reqwest::{
+	header::{HeaderMap, HeaderValue, ACCEPT},
+	ClientBuilder, RequestBuilder, Url,
+};
+#[cfg(feature = "hydrate")]
 use wasm_bindgen::prelude::*;
 
-#[cfg(target_arch = "wasm32")]
+#[cfg(all(target_arch = "wasm32", feature = "hydrate"))]
 #[allow(unsafe_code)]
 #[doc(hidden)]
 #[global_allocator]
@@ -83,6 +95,7 @@ static ALLOC: AssumeSingleThreaded<FreeListAllocator> =
 	// SAFETY: This application is single-threaded.
 	unsafe { AssumeSingleThreaded::new(FreeListAllocator::new()) };
 
+#[cfg(feature = "hydrate")]
 /// Sets up the application's logger
 ///
 /// The [panic hook](std::panic::set_hook) is set to output panic info through the logger.
@@ -128,10 +141,88 @@ fn setup_logger() -> Result<(), log::SetLoggerError> {
 	Ok(())
 }
 
-#[allow(missing_docs, clippy::missing_panics_doc)]
-#[wasm_bindgen(start)]
-pub fn main() {
+#[cfg(feature = "hydrate")]
+#[doc(hidden)]
+#[wasm_bindgen]
+pub fn hydrate() {
+	use leptos::*;
+
 	setup_logger().unwrap();
 
-	leptos::mount_to_body(|| leptos::view! { <App /> });
+	mount_to_body(move || {
+		let mut builder = ClientBuilder::new();
+		builder = builder.default_headers(RequestClient::header_map());
+		provide_context(RequestClient::build(builder).unwrap());
+
+		view! { <App /> }
+	});
+}
+
+/// Wrapper around [`reqwest::Client`] that adds a base URL
+#[derive(Debug, Clone)]
+pub struct RequestClient {
+	/// Wrapped client
+	pub client: reqwest::Client,
+	/// Base URL
+	base_url: Url,
+}
+impl RequestClient {
+	/// Returns a [`HeaderMap`] to use in [`ClientBuilder::default_headers`]
+	pub fn header_map() -> HeaderMap {
+		let mut headers = HeaderMap::new();
+		headers.insert(ACCEPT, HeaderValue::from_static("application/json"));
+
+		headers
+	}
+
+	#[cfg(all(feature = "hydrate", not(feature = "ssr")))]
+	/// Constructs a new instance from a [`ClientBuilder`]
+	///
+	/// # Errors
+	/// See [`ClientBuilder::build`].
+	///
+	/// # Panics
+	/// This function panics if `window.location.origin` is undefined,
+	/// or if the base URL [cannot be a base](Url::cannot_be_a_base).
+	pub fn build(builder: ClientBuilder) -> reqwest::Result<Self> {
+		let base_url = Url::parse(
+			&web_sys::window()
+				.unwrap_or_else(|| unreachable!())
+				.location()
+				.origin()
+				.unwrap_or_else(|_err| unreachable!()),
+		)
+		.unwrap_or_else(|_err| unreachable!());
+		debug_assert!(!base_url.cannot_be_a_base());
+
+		builder.build().map(|client| Self { client, base_url })
+	}
+
+	#[cfg(all(feature = "ssr", not(feature = "hydrate")))]
+	/// Constructs a new instance from a [`ClientBuilder`] and a base URL
+	///
+	/// # Errors
+	/// See [`ClientBuilder::build`].
+	///
+	/// # Panics
+	/// This function panics if the base URL [cannot be a base](Url::cannot_be_a_base).
+	#[inline]
+	pub fn build(builder: ClientBuilder, base_url: &str) -> reqwest::Result<Self> {
+		let base_url = Url::parse(base_url).unwrap_or_else(|_err| unreachable!());
+		debug_assert!(!base_url.cannot_be_a_base());
+
+		builder.build().map(|client| Self { client, base_url })
+	}
+
+	/// See [`reqwest::Client::get`]
+	///
+	/// # Panics
+	/// This function panics if [`Url::join`] returns an error.
+	pub fn get(&self, url: &str) -> RequestBuilder {
+		self.client.get(
+			self.base_url
+				.join(url /*.trim_start_matches('/')*/)
+				.unwrap(),
+		)
+	}
 }

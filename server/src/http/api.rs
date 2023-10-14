@@ -65,12 +65,10 @@ async fn libraries_show(
 				.collect::<Result<HashMap<String, Value>, _>>()
 		})
 		.map_err(map_err)?;
-	Ok(Json(rows.collect::<Result<_, _>>().map_err(map_err)?))
+	rows.collect::<Result<_, _>>().map(Json).map_err(map_err)
 }
 
 /// Constructs a new configured [`Router`]
-///
-/// This router should be [`nest`ed](Router::nest).
 pub(super) fn new_router() -> Router<AppState> {
 	let libraries = Resource::named("libraries")
 		.index(libraries_index)

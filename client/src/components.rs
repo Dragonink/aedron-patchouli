@@ -1,20 +1,31 @@
 //! Provides UI components
 #![allow(
+	unreachable_pub,
 	clippy::empty_structs_with_brackets,
 	clippy::missing_docs_in_private_items
 )]
 
-use gloo_net::http::RequestBuilder;
+use crate::RequestClient;
 use leptos::*;
+use leptos_meta::*;
 use leptos_router::*;
 use serde_json::Value;
 use std::collections::HashMap;
 
 /// Main component of the application
 #[component]
-pub(super) fn App() -> impl IntoView {
+pub fn App() -> impl IntoView {
+	provide_meta_context();
+
 	view! {
-		<Router>
+		<Meta charset="UTF-8" />
+		<Meta name="viewport" content="width=device-width, height=device-height, initial-scale=1" />
+		<Meta name="application-name" content="Aedron Patchouli" />
+		<Meta name="description" content="Friendly media server" />
+		<Meta name="color-scheme" content="dark" />
+		<Title formatter=|text| format!("{text} — Aedron Patchouli") />
+
+		<Router fallback=|| template! { <h1>"NOT FOUND"</h1> }.into_view()>
 			<header>
 				<h1>"Aedron Patchouli"</h1>
 			</header>
@@ -22,39 +33,61 @@ pub(super) fn App() -> impl IntoView {
 				<Routes>
 					<Route path="/" view=LibrariesIndex />
 					<Route path="/:library" view=LibraryShow />
-					<Route path="/*any" view=|| template! { <h1>"NOT FOUND"</h1> } />
 				</Routes>
 			</main>
 		</Router>
 	}
 }
 
+fn fetch_fallback(errors: RwSignal<Errors>) -> impl IntoView {
+	view! {
+		<p>
+			<b>"Could not fetch data because of the following errors:"</b>
+			<ul>
+				<For
+					each=move || errors.get()
+					key=|(key, _)| key.clone()
+					children=|(_, err)| template! {
+						<li>{err.to_string()}</li>
+					}
+				/>
+			</ul>
+		</p>
+	}
+}
+
 #[component]
 fn LibrariesIndex() -> impl IntoView {
-	#[inline]
-	async fn fetch_libraries() -> Result<HashMap<String, String>, gloo_net::Error> {
-		RequestBuilder::new("/api/libraries")
-			.header("accept", "application/json")
-			.send()
-			.await?
-			.json()
-			.await
-	}
-	let libraries = create_local_resource(|| (), |()| async { fetch_libraries().await.unwrap() });
+	let client = use_context::<RequestClient>();
+	let libraries = create_resource::<_, Result<HashMap<String, String>, ServerFnError>, _>(
+		|| (),
+		move |()| {
+			let client = client.clone();
+			async move {
+				Ok(if let Some(client) = client {
+					client.get("/api/libraries").send().await?.json().await?
+				} else {
+					Default::default()
+				})
+			}
+		},
+	);
 
 	view! {
 		<Suspense fallback=|| template! { <p>"Loading..."</p> }>
-			<nav><ul>
-				{move || with!(|libraries| libraries.as_ref().map(|libraries| {
-					libraries.iter()
-						.map(|(url, display)| template! {
-							<li>
-								<a href=format!("/{url}")>{display}</a>
-							</li>
-						})
-						.collect_view()
-				}))}
-			</ul></nav>
+			<ErrorBoundary fallback=fetch_fallback>
+				<nav><ul>
+					{move || libraries.get().map(|libraries| libraries.map(|libraries| {
+						libraries.iter()
+							.map(|(url, display)| template! {
+								<li>
+									<a href=format!("/{url}")>{display}</a>
+								</li>
+							})
+							.collect_view()
+					}))}
+				</ul></nav>
+			</ErrorBoundary>
 		</Suspense>
 	}
 }
@@ -77,34 +110,46 @@ fn LibraryShow() -> impl IntoView {
 			.unwrap_or_else(|| unreachable!()))
 	};
 
-	async fn fetch_library(library: &str) -> Result<Vec<HashMap<String, Value>>, gloo_net::Error> {
-		RequestBuilder::new(&format!("/api/libraries/{library}"))
-			.header("accept", "application/json")
-			.send()
-			.await?
-			.json()
-			.await
-	}
-	let library = create_local_resource(library, |library| async move {
-		fetch_library(&library).await.unwrap()
-	});
+	let client = use_context::<RequestClient>();
+	let library = create_resource::<_, Result<Vec<HashMap<String, Value>>, ServerFnError>, _>(
+		library,
+		move |library| {
+			let client = client.clone();
+			async move {
+				Ok(if let Some(client) = client {
+					client
+						.get(&format!("/api/libraries/{library}"))
+						.send()
+						.await?
+						.json()
+						.await?
+				} else {
+					Default::default()
+				})
+			}
+		},
+	);
 
 	view! {
 		<Suspense fallback=|| template! { <p>"Loading ..."</p> }>
-			<ul>
-				<For
-					each=move || library.get().unwrap_or_default()
-					key=|data| match data.get(&"path".to_owned()) {
-						Some(Value::String(s)) => s.to_owned(),
-						_ => unreachable!(),
-					}
-					children=|data| template! {
-						<li>
-							{format!("{data:?}")}
-						</li>
-					}
-				/>
-			</ul>
+			<ErrorBoundary fallback=fetch_fallback>
+				{move || library.get().transpose().map(|library| view! {
+					<ul>
+						<For
+							each=move || library.clone().unwrap_or_default()
+							key=|data| match data.get(&"path".to_owned()) {
+								Some(Value::String(s)) => s.to_owned(),
+								_ => unreachable!(),
+							}
+							children=|data| template! {
+								<li>
+									{format!("{data:?}")}
+								</li>
+							}
+						/>
+					</ul>
+				})}
+			</ErrorBoundary>
 		</Suspense>
 	}
 }

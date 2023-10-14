@@ -5,30 +5,52 @@ authors = { workspace = true }
 repository = { workspace = true }
 edition = { workspace = true }
 publish = { workspace = true }
-autobins = false
 
 [lib]
-path = "src/main.rs"
-crate-type = ["cdylib"]
+crate-type = ["rlib", "cdylib"]
+
+[features]
+ssr = [
+	"leptos/ssr",
+	"leptos_meta/ssr",
+	"leptos_router/ssr",
+]
+hydrate = [
+	"leptos/hydrate",
+	"leptos/template_macro",
+	"leptos_meta/hydrate",
+	"leptos_router/hydrate",
+	"dep:console_log",
+	"dep:lol_alloc",
+	"dep:wasm-bindgen",
+	"dep:web-sys",
+]
 
 [dependencies]
-console_log = "^1.0.0"
 log = { workspace = true }
-lol_alloc = "^0.4.0"
 serde_json = { workspace = true }
-wasm-bindgen = "^0.2.87"
-[dependencies.gloo-net]
-version = "^0.4.0"
-default-features = false
-features = ["http", "json"]
+[dependencies.console_log]
+version = "^1.0.0"
+optional = true
 [dependencies.leptos]
-git = "https://github.com/leptos-rs/leptos"
+version = "^0.5.1"
 default-features = false
-features = ["csr", "template_macro"]
+[dependencies.leptos_meta]
+version = "^0.5.1"
+default-features = false
 [dependencies.leptos_router]
-git = "https://github.com/leptos-rs/leptos"
+version = "^0.5.1"
 default-features = false
-features = ["csr"]
+[dependencies.lol_alloc]
+version = "^0.4.0"
+optional = true
+[dependencies.reqwest]
+version = "^0.11.22"
+features = ["json"]
+[dependencies.wasm-bindgen]
+version = "^0.2.87"
+optional = true
 [dependencies.web-sys]
 version = "^0.3.64"
-features = ["Window"]
+features = ["Window", "Location"]
+optional = true

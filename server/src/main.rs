@@ -26,7 +26,6 @@
 	clippy::str_to_string,
 	clippy::verbose_file_reads,
 	// Suspicious
-	noop_method_call,
 	meta_variable_misuse,
 	// Pedantic
 	unused_qualifications,
@@ -42,6 +41,7 @@
 	clippy::missing_errors_doc,
 	clippy::missing_panics_doc,
 	clippy::needless_continue,
+	clippy::needless_raw_string_hashes,
 	clippy::semicolon_if_nothing_returned,
 	clippy::unnested_or_patterns,
 	clippy::unused_self,
@@ -51,6 +51,8 @@
 	clippy::empty_line_after_outer_attr,
 	clippy::imprecise_flops,
 	clippy::missing_const_for_fn,
+	clippy::needless_pass_by_ref_mut,
+	clippy::readonly_write_lock,
 	clippy::suboptimal_flops,
 )]
 #![deny(
@@ -79,13 +81,25 @@ use axum::{
 	extract::{connect_info::Connected, FromRef},
 	Server,
 };
+use client::{
+	leptos::LeptosOptions,
+	reqwest::{Certificate, ClientBuilder},
+	RequestClient,
+};
 use colored::Colorize;
 use config::Config;
 use hyper::server::{accept::Accept, conn::AddrIncoming};
 use plugins::PluginStore;
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
-use std::{error::Error, fmt::Display, io, net::SocketAddr, sync::Arc};
+use std::{
+	backtrace::{Backtrace, BacktraceStatus},
+	error::Error,
+	fmt::Display,
+	io,
+	net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
+	sync::Arc,
+};
 use tokio::io::{AsyncRead, AsyncWrite};
 
 /// Name of the server executable
@@ -135,6 +149,12 @@ fn setup_logger() -> Result<(), fern::InitError> {
 		.level_for("tracing::span", LevelFilter::Off)
 		.level_for("hyper", LevelFilter::Info)
 		.level_for("tower_http::trace", LevelFilter::Off)
+		.level_for("leptos", LevelFilter::Off)
+		.level_for("leptos_axum", LevelFilter::Off)
+		.level_for("leptos_dom", LevelFilter::Off)
+		.level_for("leptos_integration_utils", LevelFilter::Off)
+		.level_for("leptos_reactive", LevelFilter::Off)
+		.level_for("leptos_router", LevelFilter::Off)
 		.chain(
 			Dispatch::new()
 				.format(move |out, message, record| {
@@ -149,7 +169,7 @@ fn setup_logger() -> Result<(), fern::InitError> {
 					let highlight = target == LOG_HIGHLIGHT || target == LOG_PANIC;
 
 					let level: Box<dyn Display> = if target == LOG_PANIC {
-						Box::new("FATAL".bold().color(colors.error))
+						Box::new("PANIC".bold().color(colors.error))
 					} else {
 						Box::new(colors.color(record.level()))
 					};
@@ -205,10 +225,17 @@ fn setup_logger() -> Result<(), fern::InitError> {
 			})
 			.unwrap_or(r"¯\_(ツ)_/¯");
 
-		if let Some(location) = panic_info.location() {
-			log::error!(target: LOG_PANIC, "Thread '{thread}' panicked at {}:{}:{} because {message}", location.file(), location.line(), location.column());
+		let backtrace = Backtrace::capture();
+		let backtrace = if backtrace.status() == BacktraceStatus::Captured {
+			format!("\n{backtrace}")
 		} else {
-			log::error!(target: LOG_PANIC, "Thread '{thread}' panicked because {message}");
+			String::new()
+		};
+
+		if let Some(location) = panic_info.location() {
+			log::error!(target: LOG_PANIC, "Thread '{thread}' panicked at {}:{}:{} because {message}{backtrace}", location.file(), location.line(), location.column());
+		} else {
+			log::error!(target: LOG_PANIC, "Thread '{thread}' panicked because {message}{backtrace}");
 		}
 	}));
 
@@ -219,11 +246,15 @@ fn setup_logger() -> Result<(), fern::InitError> {
 #[derive(Debug, Clone, FromRef)]
 struct AppState {
 	/// Configuration of the server
-	config: Arc<Config>,
+	config: Config,
+	/// Configuration of [`leptos`]
+	leptos_options: LeptosOptions,
 	/// Pool of connections to the database
 	db_pool: Pool<SqliteConnectionManager>,
 	/// Stores all plugins
 	plugins: Arc<PluginStore>,
+	/// HTTP client to load [`leptos::Resource`]
+	request_client: RequestClient,
 }
 
 /// Constructs and runs a [`Server`]
@@ -235,7 +266,7 @@ where
 {
 	Server::builder(incoming)
 		.serve(
-			http::new_router()
+			http::new_router(&state)
 				.with_state(state)
 				.into_make_service_with_connect_info::<SocketAddr>(),
 		)
@@ -261,6 +292,40 @@ async fn main() {
 			}
 		};
 
+		let mut site_addr = addr;
+		if site_addr.ip().is_unspecified() {
+			site_addr.set_ip(if site_addr.is_ipv6() {
+				IpAddr::V6(Ipv6Addr::LOCALHOST)
+			} else {
+				IpAddr::V4(Ipv4Addr::LOCALHOST)
+			});
+		}
+		let leptos_options = LeptosOptions::builder()
+			.output_name("main".to_owned())
+			.site_pkg_dir("assets")
+			.site_addr(site_addr)
+			.build();
+
+		let mut builder = ClientBuilder::new();
+		let mut https = false;
+		if let Ok(certificate) = std::fs::read(&config.tls.certificate) {
+			if let Ok(certificate) = Certificate::from_pem(&certificate) {
+				builder = builder.add_root_certificate(certificate);
+				https = true;
+			}
+		}
+		let headers = RequestClient::header_map();
+		builder = builder.default_headers(headers);
+		let request_client = RequestClient::build(
+			builder,
+			&format!(
+				"http{}://{}",
+				if https { "s" } else { "" },
+				leptos_options.site_addr
+			),
+		)
+		.unwrap();
+
 		let db_pool = db::init()?;
 
 		let plugins = PluginStore::load_plugins();
@@ -268,9 +333,11 @@ async fn main() {
 		plugins.load_media(&db_pool, &config.media);
 
 		let state = AppState {
-			config: Arc::new(config),
+			config,
+			leptos_options,
 			db_pool,
 			plugins: Arc::new(plugins),
+			request_client,
 		};
 
 		log::info!(target: LOG_HIGHLIGHT, "Starting the server on {addr}");

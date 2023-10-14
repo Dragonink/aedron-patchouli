@@ -9,7 +9,7 @@ use axum::{
 };
 use axum_extra::{
 	body::AsyncReadBody,
-	response::{Css, Html, JavaScript, Wasm},
+	response::{Css, JavaScript, Wasm},
 };
 use tokio::fs::File;
 
@@ -37,30 +37,15 @@ async fn get_asset(Path(path): Path<String>) -> Result<Response, (StatusCode, St
 
 	let body = AsyncReadBody::new(file);
 	Ok(match path.rsplit_once('.') {
-		Some((_, "html")) => Html(body).into_response(),
-		Some((_, "css")) => Css(body).into_response(),
 		Some((_, "js")) => JavaScript(body).into_response(),
 		Some((_, "wasm")) => Wasm(body).into_response(),
+		Some((_, "css")) => Css(body).into_response(),
 		_ => body.into_response(),
 	})
 }
 
 /// Constructs a new configured [`Router`]
-///
-/// This router should be [`nest`ed](Router::nest).
 #[inline]
-pub(super) fn new_nested_router() -> Router<AppState> {
+pub(super) fn new_router() -> Router<AppState> {
 	Router::new().route("/*path", routing::get(get_asset))
-}
-
-/// Constructs a new configured [`Router`]
-///
-/// This router should be [`merge`d](Router::merge).
-#[inline]
-pub(super) fn new_merged_router() -> Router<AppState> {
-	let index_handler = || get_asset(Path("index.html".to_owned()));
-
-	Router::new()
-		.route("/", routing::get(index_handler))
-		.route("/*any", routing::get(index_handler))
 }

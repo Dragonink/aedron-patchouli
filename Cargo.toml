@@ -2,6 +2,7 @@
 members = [
 	"server",
 	"client",
+	"server/plugins/lib",
 	"server/plugins/media-music",
 ]
 resolver = "2"
@@ -23,10 +24,7 @@ version = "^0.4.20"
 features = ["max_level_trace", "release_max_level_info"]
 [workspace.dependencies.rusqlite]
 version = "^0.29.0"
-features = [
-	"modern_sqlite",
-	"time",
-]
+features = ["modern_sqlite", "time"]
 [workspace.dependencies.serde]
 version = "^1.0.188"
 default-features = false

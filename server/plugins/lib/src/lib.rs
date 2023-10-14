@@ -26,7 +26,6 @@
 	clippy::str_to_string,
 	clippy::verbose_file_reads,
 	// Suspicious
-	noop_method_call,
 	meta_variable_misuse,
 	// Pedantic
 	unused_qualifications,
@@ -42,6 +41,7 @@
 	clippy::missing_errors_doc,
 	clippy::missing_panics_doc,
 	clippy::needless_continue,
+	clippy::needless_raw_string_hashes,
 	clippy::semicolon_if_nothing_returned,
 	clippy::unnested_or_patterns,
 	clippy::unused_self,
@@ -51,6 +51,8 @@
 	clippy::empty_line_after_outer_attr,
 	clippy::imprecise_flops,
 	clippy::missing_const_for_fn,
+	clippy::needless_pass_by_ref_mut,
+	clippy::readonly_write_lock,
 	clippy::suboptimal_flops,
 )]
 #![deny(

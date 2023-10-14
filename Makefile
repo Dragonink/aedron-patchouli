@@ -4,7 +4,6 @@ CARGO ?= cargo
 WASM_BINDGEN ?= wasm-bindgen
 
 RUST_PROFILE ?= dev
-WASMBGFLAGS += --remove-producers-section
 
 ifeq ($(RUST_PROFILE),dev)
 RUST_PROFILE_DIR := debug
@@ -26,6 +25,7 @@ $(OUT_RAW_WASM) : .EXTRA_PREREQS += Cargo.* client/Cargo.toml
 $(OUT_RAW_WASM) :
 	$(CARGO) build \
 		--package aedron_patchouli-client \
+		--features hydrate \
 		--target $(WASM_TARGET) \
 		--profile wasm-$(RUST_PROFILE)
 
@@ -46,6 +46,7 @@ $(OUT_CLIENT) &: $(OUT_RAW_WASM) | client/assets/out
 .PHONY : client
 client : $(OUT_CLIENT)
 
+-include target/$(RUST_PROFILE_DIR)/libaedron_patchouli-client.d
 -include target/$(RUST_PROFILE_DIR)/aedron-patchouli.d
 OUT_SERVER := $(CURDIR)/target/$(RUST_PROFILE_DIR)/aedron-patchouli 
 $(OUT_SERVER) : .EXTRA_PREREQS += Cargo.* server/Cargo.toml

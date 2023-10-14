@@ -21,6 +21,7 @@ path = "src/main.rs"
 
 [dependencies]
 colored = "^1.5"
+leptos_axum = "^0.5.1"
 libloading = "^0.8.0"
 log = { workspace = true }
 mime-db = "^1.7.0"
@@ -32,21 +33,17 @@ scheduled-thread-pool = "^0.2.7"
 serde = { workspace = true }
 serde_json = { workspace = true }
 walkdir = "^2.4.0"
+[dependencies.client]
+package = "aedron_patchouli-client"
+path = "../client"
+features = ["ssr"]
 [dependencies.pluglib]
 workspace = true
 features = ["server"]
 [dependencies.axum]
 version = "^0.6.20"
 default-features = false
-features = [
-	"tokio",
-	"http1",
-	"http2",
-	"tower-log",
-	"json",
-	"matched-path",
-	"macros",
-]
+features = ["tokio", "http1", "http2", "tower-log", "json", "matched-path", "macros"]
 [dependencies.axum-extra]
 version = "^0.7.7"
 features = ["async-read-body"]
@@ -58,12 +55,7 @@ version = "^0.14.27"
 features = ["server"]
 [dependencies.rusqlite]
 workspace = true
-features = [
-	"column_decltype",
-	"extra_check",
-	"trace",
-	"serde_json",
-]
+features = ["column_decltype", "extra_check", "trace", "serde_json"]
 [dependencies.time]
 workspace = true
 default-features = false
