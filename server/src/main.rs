@@ -76,19 +76,16 @@ mod http;
 mod plugins;
 mod tls;
 
-use crate::tls::TlsAddrIncoming;
-use axum::{
-	extract::{connect_info::Connected, FromRef},
-	Server,
-};
+use crate::tls::{ConnectedTlsAcceptor, Identity};
+use axum::{extract::FromRef, Server};
 use client::{
 	leptos::LeptosOptions,
-	reqwest::{Certificate, ClientBuilder},
+	reqwest::{Certificate, ClientBuilder, Url},
 	RequestClient,
 };
 use colored::Colorize;
 use config::Config;
-use hyper::server::{accept::Accept, conn::AddrIncoming};
+use hyper::server::conn::AddrIncoming;
 use plugins::PluginStore;
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
@@ -100,7 +97,6 @@ use std::{
 	net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
 	sync::Arc,
 };
-use tokio::io::{AsyncRead, AsyncWrite};
 
 /// Name of the server executable
 const EXE_NAME: &str = env!("CARGO_BIN_NAME");
@@ -147,14 +143,17 @@ fn setup_logger() -> Result<(), fern::InitError> {
 	let mut logger = Dispatch::new()
 		.level(log::STATIC_MAX_LEVEL)
 		.level_for("tracing::span", LevelFilter::Off)
+		.level_for("tokio_util", LevelFilter::Warn)
+		.level_for("rustls", LevelFilter::Warn)
+		.level_for("h2", LevelFilter::Warn)
 		.level_for("hyper", LevelFilter::Info)
 		.level_for("tower_http::trace", LevelFilter::Off)
-		.level_for("leptos", LevelFilter::Off)
-		.level_for("leptos_axum", LevelFilter::Off)
-		.level_for("leptos_dom", LevelFilter::Off)
-		.level_for("leptos_integration_utils", LevelFilter::Off)
-		.level_for("leptos_reactive", LevelFilter::Off)
-		.level_for("leptos_router", LevelFilter::Off)
+		.level_for("leptos", LevelFilter::Warn)
+		.level_for("leptos_axum", LevelFilter::Warn)
+		.level_for("leptos_dom", LevelFilter::Warn)
+		.level_for("leptos_integration_utils", LevelFilter::Warn)
+		.level_for("leptos_reactive", LevelFilter::Warn)
+		.level_for("leptos_router", LevelFilter::Warn)
 		.chain(
 			Dispatch::new()
 				.format(move |out, message, record| {
@@ -257,23 +256,6 @@ struct AppState {
 	request_client: RequestClient,
 }
 
-/// Constructs and runs a [`Server`]
-async fn serve<I: Accept>(incoming: I, state: AppState) -> hyper::Result<()>
-where
-	I::Conn: AsyncRead + AsyncWrite + Unpin + Send + 'static,
-	I::Error: Error + Send + Sync + 'static,
-	for<'conn> SocketAddr: Connected<&'conn I::Conn>,
-{
-	Server::builder(incoming)
-		.serve(
-			http::new_router(&state)
-				.with_state(state)
-				.into_make_service_with_connect_info::<SocketAddr>(),
-		)
-		.with_graceful_shutdown(graceful_shutdown())
-		.await
-}
-
 #[tokio::main]
 async fn main() {
 	/// Inner [`main`] function used to [`Display`] the returned error
@@ -284,14 +266,6 @@ async fn main() {
 		let config = config::build_config()?;
 		log::trace!("{config:?}");
 		let addr = SocketAddr::new(config.addr, config.port);
-		let identity = match tls::read_identity(&config.tls.certificate, &config.tls.key) {
-			Ok(identity) => Some(identity),
-			Err(ref err) if err.kind() == io::ErrorKind::NotFound => None,
-			Err(err) => {
-				return Err(err.into());
-			}
-		};
-
 		let mut site_addr = addr;
 		if site_addr.ip().is_unspecified() {
 			site_addr.set_ip(if site_addr.is_ipv6() {
@@ -300,6 +274,27 @@ async fn main() {
 				IpAddr::V4(Ipv4Addr::LOCALHOST)
 			});
 		}
+
+		let identity = match Identity::read(&config.tls.key, &config.tls.certificate) {
+			Ok(identity) => {
+				log::info!("Cryptographic identity loaded from files");
+				identity
+			}
+			Err(ref err) if err.kind() == io::ErrorKind::NotFound => {
+				log::info!("Generating a new cryptographic identity");
+				let mut subject_alt_names = config.tls.san.clone();
+				subject_alt_names.push(site_addr.ip().to_string());
+				Identity::generate_write(
+					subject_alt_names,
+					&config.tls.key,
+					&config.tls.certificate,
+				)?
+			}
+			Err(err) => {
+				return Err(err.into());
+			}
+		};
+
 		let leptos_options = LeptosOptions::builder()
 			.output_name("main".to_owned())
 			.site_pkg_dir("assets")
@@ -307,24 +302,14 @@ async fn main() {
 			.build();
 
 		let mut builder = ClientBuilder::new();
-		let mut https = false;
-		if let Ok(certificate) = std::fs::read(&config.tls.certificate) {
-			if let Ok(certificate) = Certificate::from_pem(&certificate) {
-				builder = builder.add_root_certificate(certificate);
-				https = true;
-			}
+		for cert in &identity.cert_chain {
+			builder = builder.add_root_certificate(Certificate::from_der(&cert.0).unwrap());
 		}
-		let headers = RequestClient::header_map();
-		builder = builder.default_headers(headers);
-		let request_client = RequestClient::build(
-			builder,
-			&format!(
-				"http{}://{}",
-				if https { "s" } else { "" },
-				leptos_options.site_addr
-			),
-		)
-		.unwrap();
+		builder = builder.https_only(true);
+		let Ok(base_url) = Url::parse(&format!("https://{}", leptos_options.site_addr)) else {
+			unreachable!()
+		};
+		let request_client = RequestClient::build(builder, base_url).unwrap();
 
 		let db_pool = db::init()?;
 
@@ -341,11 +326,19 @@ async fn main() {
 		};
 
 		log::info!(target: LOG_HIGHLIGHT, "Starting the server on {addr}");
-		if let Some(identity) = identity {
-			serve(TlsAddrIncoming::bind(&addr, identity)?, state).await
-		} else {
-			serve(AddrIncoming::bind(&addr)?, state).await
-		}?;
+		log::info!("You may access the app at: https://{site_addr}/");
+		Server::builder(ConnectedTlsAcceptor::new(
+			AddrIncoming::bind(&addr)?,
+			&identity,
+		)?)
+		.http2_only(true)
+		.serve(
+			http::new_router(&state)
+				.with_state(state)
+				.into_make_service_with_connect_info::<SocketAddr>(),
+		)
+		.with_graceful_shutdown(graceful_shutdown())
+		.await?;
 
 		Ok(())
 	}

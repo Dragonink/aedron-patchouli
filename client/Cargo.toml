@@ -33,20 +33,21 @@ serde_json = { workspace = true }
 version = "^1.0.0"
 optional = true
 [dependencies.leptos]
-version = "^0.5.1"
+version = "^0.5.2"
 default-features = false
 [dependencies.leptos_meta]
-version = "^0.5.1"
+version = "^0.5.2"
 default-features = false
 [dependencies.leptos_router]
-version = "^0.5.1"
+version = "^0.5.2"
 default-features = false
 [dependencies.lol_alloc]
 version = "^0.4.0"
 optional = true
 [dependencies.reqwest]
 version = "^0.11.22"
-features = ["json"]
+default-features = false
+features = ["rustls-tls", "json"]
 [dependencies.wasm-bindgen]
 version = "^0.2.87"
 optional = true

@@ -6,9 +6,10 @@ mod assets;
 use crate::AppState;
 use axum::{
 	extract::ConnectInfo,
-	http::{Request, Response},
+	http,
 	middleware::{self, Next},
-	response, Router,
+	response::Response,
+	Router,
 };
 use client::leptos;
 use hyper::body::HttpBody;
@@ -63,7 +64,7 @@ pub(super) fn new_router(state: &AppState) -> Router<AppState> {
 ///
 /// # Copied extensions
 /// - [`ConnectInfo<SocketAddr>`]
-async fn req_to_res_extensions<B>(request: Request<B>, next: Next<B>) -> response::Response {
+async fn req_to_res_extensions<B>(request: http::Request<B>, next: Next<B>) -> Response {
 	let client = request
 		.extensions()
 		.get::<ConnectInfo<SocketAddr>>()
@@ -86,7 +87,7 @@ macro_rules! get_client {
 	};
 }
 
-/// Custom implementation of [`tower_http::trace`] traits to use with [`TraceLayer`](tower_http::trace::TraceLayer)
+/// Custom implementation of [`tower_http::trace`] traits to use with [`TraceLayer`](TraceLayer)
 #[derive(Debug, Default, Clone, Copy)]
 struct CustomTrace;
 impl CustomTrace {
@@ -110,14 +111,14 @@ impl CustomTrace {
 	}
 }
 impl<B> OnRequest<B> for CustomTrace {
-	fn on_request(&mut self, request: &Request<B>, span: &Span) {
+	fn on_request(&mut self, request: &http::Request<B>, span: &Span) {
 		let client = get_client!(request);
 
 		tracing::trace!(parent: span, "{client} ---> {:8?} {} {}", request.version(), request.method(), request.uri());
 	}
 }
 impl<B> OnResponse<B> for CustomTrace {
-	fn on_response(self, response: &Response<B>, latency: Duration, span: &Span) {
+	fn on_response(self, response: &http::Response<B>, latency: Duration, span: &Span) {
 		let client = get_client!(response);
 
 		tracing::trace!(parent: span, "{client} <--- {} (in {})", response.status(), FmtDuration(latency));
@@ -159,7 +160,7 @@ impl Display for FmtDuration {
 struct ProfilePredicate;
 impl Predicate for ProfilePredicate {
 	#[inline]
-	fn should_compress<B: HttpBody>(&self, _response: &Response<B>) -> bool {
+	fn should_compress<B: HttpBody>(&self, _response: &http::Response<B>) -> bool {
 		!cfg!(debug_assertions)
 	}
 }

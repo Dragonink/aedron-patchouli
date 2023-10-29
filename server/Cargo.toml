@@ -21,18 +21,20 @@ path = "src/main.rs"
 
 [dependencies]
 colored = "^1.5"
-leptos_axum = "^0.5.1"
+leptos_axum = "^0.5.2"
 libloading = "^0.8.0"
 log = { workspace = true }
 mime-db = "^1.7.0"
-tokio-native-tls = "^0.3.1"
 r2d2 = "^0.8.10"
 r2d2_sqlite = "^0.22.0"
 rayon = "^1.7.0"
+rustls = "^0.21.8"
+rustls-pemfile = "^1.0.3"
 scheduled-thread-pool = "^0.2.7"
 serde = { workspace = true }
 serde_json = { workspace = true }
 walkdir = "^2.4.0"
+zeroize = "^1.6.0"
 [dependencies.client]
 package = "aedron_patchouli-client"
 path = "../client"
@@ -43,7 +45,7 @@ features = ["server"]
 [dependencies.axum]
 version = "^0.6.20"
 default-features = false
-features = ["tokio", "http1", "http2", "tower-log", "json", "matched-path", "macros"]
+features = ["tokio", "http2", "tower-log", "json", "matched-path", "macros"]
 [dependencies.axum-extra]
 version = "^0.7.7"
 features = ["async-read-body"]
@@ -53,6 +55,13 @@ default-features = false
 [dependencies.hyper]
 version = "^0.14.27"
 features = ["server"]
+[dependencies.hyper-rustls]
+version = "^0.24.2"
+default-features = false
+features = ["native-tokio", "http2", "tls12", "logging", "acceptor"]
+[dependencies.rcgen]
+version = "^0.11.3"
+features = ["zeroize"]
 [dependencies.rusqlite]
 workspace = true
 features = ["column_decltype", "extra_check", "trace", "serde_json"]

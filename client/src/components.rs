@@ -18,8 +18,6 @@ pub fn App() -> impl IntoView {
 	provide_meta_context();
 
 	view! {
-		<Meta charset="UTF-8" />
-		<Meta name="viewport" content="width=device-width, height=device-height, initial-scale=1" />
 		<Meta name="application-name" content="Aedron Patchouli" />
 		<Meta name="description" content="Friendly media server" />
 		<Meta name="color-scheme" content="dark" />

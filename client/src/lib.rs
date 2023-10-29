@@ -151,8 +151,16 @@ pub fn hydrate() {
 
 	mount_to_body(move || {
 		let mut builder = ClientBuilder::new();
-		builder = builder.default_headers(RequestClient::header_map());
-		provide_context(RequestClient::build(builder).unwrap());
+		let Some(window) = web_sys::window() else {
+			unreachable!()
+		};
+		let Ok(origin) = window.location().origin() else {
+			unreachable!()
+		};
+		let Ok(base_url) = Url::parse(&origin) else {
+			unreachable!()
+		};
+		provide_context(RequestClient::build(builder, base_url).unwrap());
 
 		view! { <App /> }
 	});
@@ -167,49 +175,19 @@ pub struct RequestClient {
 	base_url: Url,
 }
 impl RequestClient {
-	/// Returns a [`HeaderMap`] to use in [`ClientBuilder::default_headers`]
-	pub fn header_map() -> HeaderMap {
-		let mut headers = HeaderMap::new();
-		headers.insert(ACCEPT, HeaderValue::from_static("application/json"));
-
-		headers
-	}
-
-	#[cfg(all(feature = "hydrate", not(feature = "ssr")))]
-	/// Constructs a new instance from a [`ClientBuilder`]
-	///
-	/// # Errors
-	/// See [`ClientBuilder::build`].
-	///
-	/// # Panics
-	/// This function panics if `window.location.origin` is undefined,
-	/// or if the base URL [cannot be a base](Url::cannot_be_a_base).
-	pub fn build(builder: ClientBuilder) -> reqwest::Result<Self> {
-		let base_url = Url::parse(
-			&web_sys::window()
-				.unwrap_or_else(|| unreachable!())
-				.location()
-				.origin()
-				.unwrap_or_else(|_err| unreachable!()),
-		)
-		.unwrap_or_else(|_err| unreachable!());
-		debug_assert!(!base_url.cannot_be_a_base());
-
-		builder.build().map(|client| Self { client, base_url })
-	}
-
-	#[cfg(all(feature = "ssr", not(feature = "hydrate")))]
 	/// Constructs a new instance from a [`ClientBuilder`] and a base URL
 	///
 	/// # Errors
 	/// See [`ClientBuilder::build`].
 	///
 	/// # Panics
-	/// This function panics if the base URL [cannot be a base](Url::cannot_be_a_base).
-	#[inline]
-	pub fn build(builder: ClientBuilder, base_url: &str) -> reqwest::Result<Self> {
-		let base_url = Url::parse(base_url).unwrap_or_else(|_err| unreachable!());
+	/// This function panics if the URL [cannot be a base](Url::cannot_be_a_base).
+	pub fn build(mut builder: ClientBuilder, base_url: Url) -> reqwest::Result<Self> {
 		debug_assert!(!base_url.cannot_be_a_base());
+
+		let mut headers = HeaderMap::new();
+		headers.insert(ACCEPT, HeaderValue::from_static("application/json"));
+		builder = builder.default_headers(headers);
 
 		builder.build().map(|client| Self { client, base_url })
 	}
@@ -218,11 +196,12 @@ impl RequestClient {
 	///
 	/// # Panics
 	/// This function panics if [`Url::join`] returns an error.
+	#[inline]
 	pub fn get(&self, url: &str) -> RequestBuilder {
 		self.client.get(
 			self.base_url
-				.join(url /*.trim_start_matches('/')*/)
-				.unwrap(),
+				.join(url)
+				.unwrap_or_else(|_err| unreachable!()),
 		)
 	}
 }

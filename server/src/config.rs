@@ -10,7 +10,7 @@ use std::{
 
 /// Builds the server's configuration
 #[inline]
-pub(super) fn build_config() -> Result<Config, ConfigError> {
+pub(crate) fn build_config() -> Result<Config, ConfigError> {
 	config::Config::builder()
 		.add_source(File::with_name("config").required(false))
 		.add_source(Environment::with_prefix("AEPA"))
@@ -20,19 +20,19 @@ pub(super) fn build_config() -> Result<Config, ConfigError> {
 
 /// Root configuration structure
 #[derive(Debug, Clone, Deserialize)]
-pub(super) struct Config {
+pub(crate) struct Config {
 	/// Address to bind the server to
 	#[serde(default = "Config::default_addr")]
-	pub(super) addr: IpAddr,
+	pub(crate) addr: IpAddr,
 	/// Port to bind the server to
 	#[serde(default = "Config::default_port")]
-	pub(super) port: u16,
+	pub(crate) port: u16,
 	/// Configuration of the TLS
 	#[serde(default)]
-	pub(super) tls: TlsConfig,
+	pub(crate) tls: TlsConfig,
 	/// Configuration of media plugins
 	#[serde(default)]
-	pub(super) media: HashMap<String, MediaConfig>,
+	pub(crate) media: HashMap<String, MediaConfig>,
 }
 impl Config {
 	/// Default value for [`addr`](Self#structfield.addr)
@@ -61,13 +61,16 @@ impl Default for Config {
 
 /// Configuration of the TLS
 #[derive(Debug, Clone, Deserialize)]
-pub(super) struct TlsConfig {
+pub(crate) struct TlsConfig {
 	/// TLS certificate file
 	#[serde(default = "TlsConfig::default_certificate")]
-	pub(super) certificate: PathBuf,
+	pub(crate) certificate: PathBuf,
 	/// TLS private key file
 	#[serde(default = "TlsConfig::default_key")]
-	pub(super) key: PathBuf,
+	pub(crate) key: PathBuf,
+	/// Additional [subject alternative names](https://en.wikipedia.org/wiki/Subject_Alternative_Name)
+	#[serde(default)]
+	pub(crate) san: Vec<String>,
 }
 impl TlsConfig {
 	/// Default value for [`certificate`](Self#structfield.certificate)
@@ -88,14 +91,15 @@ impl Default for TlsConfig {
 		Self {
 			certificate: Self::default_certificate(),
 			key: Self::default_key(),
+			san: Default::default(),
 		}
 	}
 }
 
 /// Configuration of a single media plugin
 #[derive(Debug, Default, Clone, Deserialize)]
-pub(super) struct MediaConfig {
+pub(crate) struct MediaConfig {
 	/// Root directories containing the media files
 	#[serde(default)]
-	pub(super) paths: Vec<PathBuf>,
+	pub(crate) paths: Vec<PathBuf>,
 }
