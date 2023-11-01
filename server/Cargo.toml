@@ -38,6 +38,7 @@ zeroize = "^1.6.0"
 [dependencies.client]
 package = "aedron_patchouli-client"
 path = "../client"
+default-features = false
 features = ["ssr"]
 [dependencies.pluglib]
 workspace = true

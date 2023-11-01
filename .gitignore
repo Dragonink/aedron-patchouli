@@ -5,6 +5,3 @@
 /config.*
 /private.key
 /certificate.crt
-
-
-.helix/

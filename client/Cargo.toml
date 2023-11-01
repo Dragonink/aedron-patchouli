@@ -10,11 +10,6 @@ publish = { workspace = true }
 crate-type = ["rlib", "cdylib"]
 
 [features]
-ssr = [
-	"leptos/ssr",
-	"leptos_meta/ssr",
-	"leptos_router/ssr",
-]
 hydrate = [
 	"leptos/hydrate",
 	"leptos/template_macro",
@@ -25,6 +20,13 @@ hydrate = [
 	"dep:wasm-bindgen",
 	"dep:web-sys",
 ]
+ssr = [
+	"leptos/ssr",
+	"leptos_meta/ssr",
+	"leptos_router/ssr",
+]
+
+default = ["hydrate"]
 
 [dependencies]
 log = { workspace = true }
@@ -49,9 +51,9 @@ version = "^0.11.22"
 default-features = false
 features = ["rustls-tls", "json"]
 [dependencies.wasm-bindgen]
-version = "^0.2.87"
+version = "^0.2.88"
 optional = true
 [dependencies.web-sys]
-version = "^0.3.64"
+version = "^0.3.65"
 features = ["Window", "Location"]
 optional = true

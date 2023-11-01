@@ -70,14 +70,16 @@
 )]
 #![forbid(clippy::undocumented_unsafe_blocks)]
 
+#[cfg(not(any(feature = "hydrate", feature = "ssr")))]
+compile_error!("One of the `hydrate` and `ssr` features must be enabled");
 #[cfg(all(feature = "hydrate", feature = "ssr"))]
 compile_error!("The `hydrate` and `ssr` features are mutually exclusive");
 
 pub mod components;
 
-pub use components::*;
+pub use crate::components::*;
 pub use leptos;
-#[cfg(all(target_arch = "wasm32", feature = "hydrate"))]
+#[cfg(target_arch = "wasm32")]
 use lol_alloc::{AssumeSingleThreaded, FreeListAllocator};
 pub use reqwest;
 use reqwest::{
@@ -87,7 +89,7 @@ use reqwest::{
 #[cfg(feature = "hydrate")]
 use wasm_bindgen::prelude::*;
 
-#[cfg(all(target_arch = "wasm32", feature = "hydrate"))]
+#[cfg(target_arch = "wasm32")]
 #[allow(unsafe_code)]
 #[doc(hidden)]
 #[global_allocator]

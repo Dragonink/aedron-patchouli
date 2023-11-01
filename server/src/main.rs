@@ -296,7 +296,7 @@ async fn main() {
 		};
 
 		let leptos_options = LeptosOptions::builder()
-			.output_name("main".to_owned())
+			.output_name(env!("ASSET_PREFIX").to_owned())
 			.site_pkg_dir("assets")
 			.site_addr(site_addr)
 			.build();

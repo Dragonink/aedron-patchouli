@@ -4,6 +4,7 @@ CARGO ?= cargo
 WASM_BINDGEN ?= wasm-bindgen
 
 RUST_PROFILE ?= dev
+ASSET_PREFIX ?= main
 
 ifeq ($(RUST_PROFILE),dev)
 RUST_PROFILE_DIR := debug
@@ -29,7 +30,7 @@ $(OUT_RAW_WASM) :
 		--target $(WASM_TARGET) \
 		--profile wasm-$(RUST_PROFILE)
 
-OUT_CLIENT := $(addprefix client/assets/out/main,_bg.wasm .js) 
+OUT_CLIENT := $(addprefix client/assets/out/$(ASSET_PREFIX),_bg.wasm .js) 
 $(OUT_CLIENT) &: $(OUT_RAW_WASM) | client/assets/out
 	$(WASM_BINDGEN) \
 		--target web \
@@ -39,7 +40,7 @@ $(OUT_CLIENT) &: $(OUT_RAW_WASM) | client/assets/out
 		--split-linked-modules \
 		--no-typescript \
 		--out-dir $(@D) \
-		--out-name main \
+		--out-name $(ASSET_PREFIX) \
 		$(WASMBGFLAGS) \
 		$<
 
@@ -48,9 +49,10 @@ client : $(OUT_CLIENT)
 
 -include target/$(RUST_PROFILE_DIR)/libaedron_patchouli-client.d
 -include target/$(RUST_PROFILE_DIR)/aedron-patchouli.d
-OUT_SERVER := $(CURDIR)/target/$(RUST_PROFILE_DIR)/aedron-patchouli 
+OUT_SERVER := $(CURDIR)/target/$(RUST_PROFILE_DIR)/aedron-patchouli
 $(OUT_SERVER) : .EXTRA_PREREQS += Cargo.* server/Cargo.toml
-$(OUT_SERVER) : client 
+$(OUT_SERVER) : client
+	ASSET_PREFIX=$(ASSET_PREFIX) \
 	$(CARGO) build \
 		--package aedron_patchouli-server \
 		--profile $(RUST_PROFILE)
